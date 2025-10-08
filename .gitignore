@@ -2,4 +2,5 @@ backend/venv/
 __pycache__/
 *.pyc
 *.pyo
-__init__.py
+*__init__.py
+frontend/node_modules/

@@ -32,15 +32,15 @@ async def startup_event():
     This runs when the server starts.
     We can add initialization logic here later (like database connection).
     """
-    print(f"🚀 {settings.app_name} starting up...")
-    print(f"📡 Server running in {'DEBUG' if settings.debug else 'PRODUCTION'} mode")
+    print(f"{settings.app_name} starting up...")
+    print(f"Server running in {'DEBUG' if settings.debug else 'PRODUCTION'} mode")
     # Test database connection
-    print("🔌 Testing database connection...")
+    print("Testing database connection...")
     if test_connection():
-        print("✅ Database connected successfully!")
+        print("Database connected successfully!")
         create_tables()  # Verify tables exist
     else:
-        print("❌ Database connection failed!")
+        print("Database connection failed!")
 
 # Shutdown event - runs when server stops
 @app.on_event("shutdown")
@@ -49,5 +49,5 @@ async def shutdown_event():
     This runs when the server shuts down.
     We can add cleanup logic here later (like closing database connections).
     """
-    print("🛑 Shutting down server...")
+    print("Shutting down server...")
 

@@ -1,6 +1,6 @@
 her ei am making the software for the pyrometer devices where i will be making the backend in the python fastapi and the frontend in React with the database in postgreSQL.
 
-
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 
 ## **Complete Step-by-Step Plan**

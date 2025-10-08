@@ -1,8 +1,14 @@
 #all api endpoints are here
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends  
+from sqlalchemy.orm import Session  
 from typing import List, Dict
 from app.api.devices import router as devices_router
+from app.database import get_db, engine  
+from sqlalchemy import text
+from app.models.device import DeviceSettings, DeviceReading
+from datetime import datetime
+
 
 router = APIRouter(
     prefix="/api",
@@ -30,14 +36,39 @@ async def api_root():
     }
 
 @router.get("/health")
-async def health_check():
+async def health_check(db: Session = Depends(get_db)):
     """
     Health check endpoint - Monitor system status
     """
+    db_status ="disconnected"
+    db_details = {}
+
+    try:
+        #try to execute simple query
+        result = db.execute(text("SELECT 1"))
+        result.fetchone()
+        #get device count 
+        device_count = db.query(DeviceSettings).count()
+        reading_count = db.query(DeviceReading).count()
+
+        db_status = "connected"
+        db_details = {
+            "device_count": device_count,
+            "reading_count": reading_count
+        }
+    except Exception as e:
+        db_status = "error"
+        db_details = {"error": str(e)}
+
+    #overall system status
+    system_status = "healthy" if db_status == "connected" else "unhealthy"
+
     return {
-        "status": "healthy",
-        "database": "connected yet",
-        "modbus": "not initialized yet"
+        "status": system_status,
+        "database": db_status,
+        "database_details": db_details,
+        "modbus": "not initialized yet", 
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 

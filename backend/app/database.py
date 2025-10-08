@@ -60,10 +60,10 @@ def test_connection():
         # Try to connect
         connection = engine.connect()
         connection.close()
-        print("✅ Database connection successful!")
+        print("Database connection successful!")
         return True
     except Exception as e:
-        print(f"❌ Database connection failed: {e}")
+        print(f"Database connection failed: {e}")
         return False
 
 
@@ -74,4 +74,4 @@ def create_tables():
     This is a backup - we already created tables in pgAdmin.
     """
     Base.metadata.create_all(bind=engine)
-    print("✅ Database tables verified/created!")
+    print("Database tables verified/created!")
