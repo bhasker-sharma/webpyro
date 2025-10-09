@@ -1,13 +1,33 @@
 import { useState, useEffect } from 'react';
+import ConfigModal from '../components/ConfigModal';
 
-function DashboardPage() {
+function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     const [devices, setDevices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        console.log('Dashboard mounted - Will fetch devices from API in Step 4');
+        console.log('Dashboard mounted');
     }, []);
+
+    const handleSaveDevices = (allDevices) => {
+        console.log('Saving devices:', allDevices);
+        // Filter only enabled devices for display
+        const enabledOnly = allDevices.filter(device => device.enabled);
+        setDevices(enabledOnly);
+        setConfigModalOpen(false);
+    };
+
+    // Calculate grid columns based on number of devices
+    const getGridColumns = () => {
+        const count = devices.length;
+        if (count === 0) return 'grid-cols-1';
+        if (count === 1) return 'grid-cols-1';
+        if (count === 2) return 'grid-cols-2';
+        if (count <= 6) return 'grid-cols-3';
+        if (count <= 12) return 'grid-cols-4';
+        return 'grid-cols-4';  // 13-16 devices also use 4 columns
+    };
 
     const fetchDevices = async () => {
         setLoading(true);
@@ -41,7 +61,7 @@ function DashboardPage() {
                             <span className="text-xs text-gray-500">{devices.length} / 16</span>
                         </div>
 
-                        <div className="grid grid-cols-4 gap-2 flex-1 overflow-hidden">
+                        <div className={`grid ${getGridColumns()} auto-rows-fr gap-2 flex-1 overflow-hidden min-h-0`}>
                             {devices.length === 0 ? (
                                 <div className="col-span-full flex flex-col items-center justify-center">
                                     <svg className="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -80,6 +100,13 @@ function DashboardPage() {
 
                 </div>
             </div>
+
+            <ConfigModal
+                isOpen={configModalOpen}
+                onClose={() => setConfigModalOpen(false)}
+                devices={devices}
+                onSave={handleSaveDevices}
+            />
         </div>
     );
 }
@@ -95,26 +122,26 @@ function DeviceCard({ device }) {
     };
 
     return (
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200 hover:shadow-lg transition h-full flex flex-col justify-between">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200 hover:shadow-lg transition flex flex-col justify-between min-h-0">
             <div className="flex items-center justify-between mb-1">
                 <h3 className="font-semibold text-gray-800 text-xs truncate flex-1">{device.name}</h3>
-                <span className="text-xs text-gray-500 ml-1">ID:{device.slave_id}</span>
+                <span className="text-[10px] text-gray-500 ml-1">ID:{device.slave_id}</span>
             </div>
 
-            <div className="text-center my-1 flex-1 flex items-center justify-center">
-                <div className="text-2xl font-bold text-blue-600">
+            <div className="text-center flex-1 flex items-center justify-center min-h-0">
+                <div className="text-xl lg:text-2xl font-bold text-blue-600">
                     {device.temperature || '--'}°C
                 </div>
             </div>
 
-            <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
+            <div className="space-y-0.5">
+                <div className="flex items-center justify-between text-[10px]">
                     <span className="text-gray-600 truncate">{device.com_port}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(device.status || 'N/A')}`}>
+                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium border ${getStatusColor(device.status || 'N/A')}`}>
                         {device.status || 'N/A'}
                     </span>
                 </div>
-                <div className="text-xs text-gray-500 text-center truncate">
+                <div className="text-[10px] text-gray-500 text-center truncate">
                     {device.last_updated || 'Never'}
                 </div>
             </div>

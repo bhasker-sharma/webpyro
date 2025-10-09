@@ -1,34 +1,27 @@
-/**
- * App.jsx - Main Application Component
- * 
- * Purpose: This is the root component that handles routing between different pages
- * 
- * Structure:
- * - Uses React Router for navigation
- * - Wraps all pages with Navbar component
- * - Defines routes for Dashboard and Configuration
- */
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useState } from 'react';
 import Navbar from './components/Navbar';
 import DashboardPage from './pages/DashboardPage';
 
 function App() {
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+
   return (
-    // Router wraps entire app to enable navigation
     <Router>
       <div className="min-h-screen bg-gray-50">
-        {/* Navbar appears on all pages */}
-        <Navbar />
-        
-        {/* Main content area */}
-        <main className="container mx-auto">
+        <Navbar onConfigureClick={() => setConfigModalOpen(true)} />
+
+        <main>
           <Routes>
-            {/* Default route - Dashboard page */}
-            <Route path="/" element={<DashboardPage />} />
-            
-            {/* Additional routes will be added here later */}
-            {/* <Route path="/config" element={<ConfigPage />} /> */}
+            <Route
+              path="/"
+              element={
+                <DashboardPage
+                  configModalOpen={configModalOpen}
+                  setConfigModalOpen={setConfigModalOpen}
+                />
+              }
+            />
           </Routes>
         </main>
       </div>
