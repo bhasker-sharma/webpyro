@@ -1,22 +1,17 @@
 import { useState, useEffect } from 'react';
 import ConfigModal from '../components/ConfigModal';
+import { deviceAPI } from '../services/api';
 
 function DashboardPage({ configModalOpen, setConfigModalOpen }) {
-    const [devices, setDevices] = useState([]);
+    const [devices, setDevices] = useState([]); // Only enabled devices for display
+    const [allDevices, setAllDevices] = useState([]); // All devices for modal
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         console.log('Dashboard mounted');
+        fetchDevices();
     }, []);
-
-    const handleSaveDevices = (allDevices) => {
-        console.log('Saving devices:', allDevices);
-        // Filter only enabled devices for display
-        const enabledOnly = allDevices.filter(device => device.enabled);
-        setDevices(enabledOnly);
-        setConfigModalOpen(false);
-    };
 
     // Calculate grid columns based on number of devices
     const getGridColumns = () => {
@@ -31,17 +26,69 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
 
     const fetchDevices = async () => {
         setLoading(true);
+        setError(null);
         try {
-            // const response = await axios.get('http://localhost:8000/api/devices');
-            // setDevices(response.data);
+            const enabledData = await deviceAPI.getAll(true); // For display
+            const allData = await deviceAPI.getAll(false); // For modal
+            setDevices(enabledData);
+            setAllDevices(allData);
+            console.log('Fetched enabled devices:', enabledData);
+            console.log('Fetched all devices:', allData);
         } catch (err) {
-            setError('Failed to fetch devices');
-            console.error(err);
+            setError('Failed to fetch devices from backend');
+            console.error('Error fetching devices:', err);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleSaveDevices = async (configuredDevices) => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            // Step 1: Delete ALL existing devices from database
+            const existingDevices = await deviceAPI.getAll(false);
+            console.log('Deleting all existing devices:', existingDevices.length);
+
+            for (const device of existingDevices) {
+                await deviceAPI.delete(device.id);
+                console.log(`Deleted device: ${device.name}`);
+            }
+
+            // Step 2: Insert ONLY the devices from the table (with their enabled state)
+            console.log('Creating new devices from table:', configuredDevices);
+
+            for (const device of configuredDevices) {
+                const devicePayload = {
+                    name: device.name,
+                    slave_id: device.slave_id,
+                    baud_rate: device.baud_rate,
+                    com_port: device.com_port,
+                    enabled: device.enabled, // Respect the toggle state
+                    register_address: device.register_address,
+                    function_code: device.function_code,
+                    start_register: device.start_register,
+                    register_count: device.register_count,
+                };
+
+                await deviceAPI.create(devicePayload);
+                console.log(`Created device: ${device.name} (enabled: ${device.enabled})`);
+            }
+
+            // Step 3: Refresh data from database
+            await fetchDevices();
+            setConfigModalOpen(false);
+            alert('Devices saved successfully!');
+        } catch (err) {
+            setError('Failed to save devices');
+            console.error('Error saving devices:', err);
+            alert('Error saving devices. Check console for details.');
+        } finally {
+            setLoading(false);
+        }
+    };
+  
     return (
         <div className="h-screen bg-gray-50 overflow-hidden">
             <div className="container mx-auto px-2 h-full flex flex-col">
@@ -104,7 +151,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
             <ConfigModal
                 isOpen={configModalOpen}
                 onClose={() => setConfigModalOpen(false)}
-                devices={devices}
+                devices={allDevices}
                 onSave={handleSaveDevices}
             />
         </div>

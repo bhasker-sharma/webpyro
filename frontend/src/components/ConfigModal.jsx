@@ -9,19 +9,23 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
         }
     }, [isOpen, devices]);
 
-    const initializeDevices = () => {
-        if (devices && devices.length > 0) {
-            // If there are existing devices, load them
-            setConfigDevices(devices);
-        } else {
-            // Start with one empty row
-            setConfigDevices([createNewDevice(1)]);
+    const initializeDevices = async () => {
+        try {
+            if (devices && devices.length > 0) {
+                // Load existing devices from database
+                setConfigDevices(devices);
+            } else {
+                // Start with one empty row if no devices exist
+                setConfigDevices([createNewDevice(1)]);
+            }
+        } catch (err) {
+            console.error('Error initializing devices:', err);
         }
     };
 
     const createNewDevice = (deviceNum) => {
         return {
-            id: deviceNum,
+            id: null, // null for new devices (not yet in DB)
             name: `Device ${deviceNum}`,
             slave_id: deviceNum,
             baud_rate: 9600,
@@ -48,22 +52,24 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
     const handleAddRow = () => {
         if (configDevices.length < 16) {
-            const nextDeviceNum = configDevices.length + 1;
-            setConfigDevices([...configDevices, createNewDevice(nextDeviceNum)]);
+            // Find the next available slave_id
+            const existingSlaveIds = configDevices.map(d => d.slave_id);
+            let nextSlaveId = 1;
+            while (existingSlaveIds.includes(nextSlaveId) && nextSlaveId <= 247) {
+                nextSlaveId++;
+            }
+            setConfigDevices([...configDevices, createNewDevice(nextSlaveId)]);
         }
     };
 
     const handleDeleteRow = (index) => {
         const updated = configDevices.filter((_, i) => i !== index);
-        // Reassign IDs sequentially
-        const reassigned = updated.map((device, i) => ({
-            ...device,
-            id: i + 1
-        }));
-        setConfigDevices(reassigned);
+        // Keep existing slave_ids, don't reassign them
+        setConfigDevices(updated);
     };
 
     const handleSave = () => {
+        // Pass only the devices that are in the table (no filtering, ALL rows)
         onSave(configDevices);
         onClose();
     };
@@ -94,7 +100,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
                 <div className="flex-1 overflow-auto p-4">
                     <div className="mb-4 text-sm text-gray-600">
-                        Add devices one by one (maximum 16 devices). Click the + button to add more devices. Use the toggle to enable/disable devices.
+                        Add devices one by one (maximum 16 devices). Use the + button to add new rows, - button to delete rows, and toggle to enable/disable devices.
                     </div>
 
                     <div className="overflow-x-auto">
@@ -116,27 +122,24 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                             </thead>
                             <tbody>
                                 {configDevices.map((device, index) => (
-                                    <tr key={index} className={device.enabled ? 'bg-blue-50' : 'bg-white'}>
+                                    <tr key={index} className={device.enabled ? "bg-blue-50" : "bg-white"}>
                                         <td className="border border-gray-300 px-2 py-2 text-center">
                                             <button
                                                 onClick={() => handleToggleEnable(index)}
-                                                className={`w-12 h-6 rounded-full transition ${device.enabled ? 'bg-green-500' : 'bg-gray-300'
-                                                    }`}
+                                                className={`w-12 h-6 rounded-full transition ${device.enabled ? 'bg-green-500' : 'bg-gray-300'}`}
                                             >
-                                                <div className={`w-5 h-5 bg-white rounded-full shadow transform transition ${device.enabled ? 'translate-x-6' : 'translate-x-0.5'
-                                                    }`} />
+                                                <div className={`w-5 h-5 bg-white rounded-full shadow transform transition ${device.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
                                             </button>
                                         </td>
                                         <td className="border border-gray-300 px-2 py-2 text-center font-semibold text-sm">
-                                            {device.id}
+                                            {index + 1}
                                         </td>
                                         <td className="border border-gray-300 px-2 py-2">
                                             <input
                                                 type="text"
                                                 value={device.name}
                                                 onChange={(e) => handleChange(index, 'name', e.target.value)}
-                                                disabled={!device.enabled}
-                                                className={`w-full px-2 py-1 text-sm border rounded ${device.enabled ? 'bg-white' : 'bg-gray-100'}`}
+                                                className="w-full px-2 py-1 text-sm border rounded bg-white"
                                                 placeholder="Device Name"
                                             />
                                         </td>
@@ -145,8 +148,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                                 type="number"
                                                 value={device.slave_id}
                                                 onChange={(e) => handleChange(index, 'slave_id', parseInt(e.target.value) || 1)}
-                                                disabled={!device.enabled}
-                                                className={`w-20 px-2 py-1 text-sm border rounded ${device.enabled ? 'bg-white' : 'bg-gray-100'}`}
+                                                className="w-20 px-2 py-1 text-sm border rounded bg-white"
                                                 min="1"
                                                 max="247"
                                             />
@@ -155,8 +157,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                             <select
                                                 value={device.baud_rate}
                                                 onChange={(e) => handleChange(index, 'baud_rate', parseInt(e.target.value))}
-                                                disabled={!device.enabled}
-                                                className={`w-24 px-2 py-1 text-sm border rounded ${device.enabled ? 'bg-white' : 'bg-gray-100'}`}
+                                                className="w-24 px-2 py-1 text-sm border rounded bg-white"
                                             >
                                                 <option value="1200">1200</option>
                                                 <option value="2400">2400</option>
@@ -172,8 +173,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                             <select
                                                 value={device.com_port}
                                                 onChange={(e) => handleChange(index, 'com_port', e.target.value)}
-                                                disabled={!device.enabled}
-                                                className={`w-24 px-2 py-1 text-sm border rounded ${device.enabled ? 'bg-white' : 'bg-gray-100'}`}
+                                                className="w-24 px-2 py-1 text-sm border rounded bg-white"
                                             >
                                                 {Array.from({ length: 20 }, (_, i) => (
                                                     <option key={i} value={`COM${i + 1}`}>COM{i + 1}</option>
@@ -185,8 +185,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                                 type="number"
                                                 value={device.register_address}
                                                 onChange={(e) => handleChange(index, 'register_address', parseInt(e.target.value) || 0)}
-                                                disabled={!device.enabled}
-                                                className={`w-24 px-2 py-1 text-sm border rounded ${device.enabled ? 'bg-white' : 'bg-gray-100'}`}
+                                                className="w-24 px-2 py-1 text-sm border rounded bg-white"
                                                 min="0"
                                             />
                                         </td>
@@ -194,8 +193,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                             <select
                                                 value={device.function_code}
                                                 onChange={(e) => handleChange(index, 'function_code', parseInt(e.target.value))}
-                                                disabled={!device.enabled}
-                                                className={`w-20 px-2 py-1 text-sm border rounded ${device.enabled ? 'bg-white' : 'bg-gray-100'}`}
+                                                className="w-20 px-2 py-1 text-sm border rounded bg-white"
                                             >
                                                 <option value="3">3</option>
                                                 <option value="4">4</option>
@@ -206,8 +204,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                                 type="number"
                                                 value={device.start_register}
                                                 onChange={(e) => handleChange(index, 'start_register', parseInt(e.target.value) || 0)}
-                                                disabled={!device.enabled}
-                                                className={`w-24 px-2 py-1 text-sm border rounded ${device.enabled ? 'bg-white' : 'bg-gray-100'}`}
+                                                className="w-24 px-2 py-1 text-sm border rounded bg-white"
                                                 min="0"
                                             />
                                         </td>
@@ -216,8 +213,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                                 type="number"
                                                 value={device.register_count}
                                                 onChange={(e) => handleChange(index, 'register_count', parseInt(e.target.value) || 1)}
-                                                disabled={!device.enabled}
-                                                className={`w-20 px-2 py-1 text-sm border rounded ${device.enabled ? 'bg-white' : 'bg-gray-100'}`}
+                                                className="w-20 px-2 py-1 text-sm border rounded bg-white"
                                                 min="1"
                                             />
                                         </td>
@@ -249,7 +245,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
                 <div className="flex items-center justify-between p-4 border-t bg-gray-50">
                     <div className="text-sm text-gray-600">
-                        <span className="font-semibold">{configDevices.filter(d => d.enabled).length}</span> / {configDevices.length} devices enabled
+                        <span className="font-semibold">{configDevices.filter(d => d.enabled).length}</span> enabled / <span className="font-semibold">{configDevices.length}</span> total
                     </div>
                     <div className="flex space-x-3">
                         <button
