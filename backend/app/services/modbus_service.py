@@ -10,7 +10,6 @@ from datetime import datetime
 from typing import Dict, Optional
 
 # Setup logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -44,8 +43,8 @@ class ModbusService:
             
             # Create client if needed
             if not self.client:
-                logger.info(f"Connecting to {port} at {baudrate} baud...")
-                
+                logger.debug(f"Connecting to {port} at {baudrate} baud...")
+
                 self.client = ModbusSerialClient(
                     port=port,
                     baudrate=baudrate,
@@ -54,12 +53,12 @@ class ModbusService:
                     stopbits=1,
                     timeout=timeout
                 )
-                
+
                 # Try to connect
                 if self.client.connect():
                     self.current_port = port
                     self.current_baudrate = baudrate
-                    logger.info(f"✅ Connected to {port}")
+                    logger.debug(f"✅ Connected to {port}")
                     return True
                 else:
                     logger.error(f"❌ Failed to connect to {port}")
@@ -141,8 +140,8 @@ class ModbusService:
             start_register = device_config.get('start_register', 0)
             register_count = device_config.get('register_count', 2)
             
-            logger.info(f"📡 Reading {device_name} (Slave ID: {slave_id})...")
-            logger.info(f"   Function: {function_code}, Register: {start_register}, Count: {register_count}")
+            logger.debug(f"📡 Reading {device_name} (Slave ID: {slave_id})...")
+            logger.debug(f"   Function: {function_code}, Register: {start_register}, Count: {register_count}")
             
             # Read registers based on function code
             if function_code == 3:
@@ -172,11 +171,11 @@ class ModbusService:
             
             # Get register values
             registers = response.registers
-            logger.info(f"   Raw registers: {registers}")
-            
+            logger.debug(f"   Raw registers: {registers}")
+
             # Convert raw hex for logging
             result['raw_hex'] = ' '.join([f'{reg:04X}' for reg in registers])
-            logger.info(f"   Raw hex: {result['raw_hex']}")
+            logger.debug(f"   Raw hex: {result['raw_hex']}")
             
             # Decode temperature based on register count
             if register_count == 1:
@@ -200,7 +199,7 @@ class ModbusService:
             if -50 <= temperature <= 1500:  # Reasonable range for pyrometer
                 result['temperature'] = round(temperature, 2)
                 result['status'] = 'OK'
-                logger.info(f"✅ {device_name}: {temperature:.2f}°C - Status: OK")
+                logger.debug(f"✅ {device_name}: {temperature:.2f}°C - Status: OK")
             else:
                 result['temperature'] = temperature
                 result['status'] = 'Err'

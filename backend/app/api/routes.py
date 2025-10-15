@@ -80,6 +80,13 @@ async def test_endpoint():
         "note": "Use /api/devices to manage devices"
     }
 
+@router.get("/polling/stats")
+async def get_polling_stats():
+    """
+    Get polling service statistics
+    """
+    from app.services.polling_service import polling_service
+    return polling_service.get_stats()
 
 # ============================================================================
 # INCLUDE SUB-ROUTERS

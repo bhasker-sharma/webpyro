@@ -1,53 +1,83 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+import logging
+
 from app.config import get_settings
 from app.api.routes import router as api_router
-from app.database import test_connection,create_tables
+from app.database import test_connection, create_tables
+from app.services.polling_service import polling_service  # NEW IMPORT
 
 settings = get_settings()
 
-app = FastAPI(
-    title=settings.app_name,
-    debug=settings.debug,
-    description="Modbus RS485 Temperature Monitoring System",
-    version="1.0.0"
+# Configure logging
+logging.basicConfig(
+    level=logging.WARNING,  # Only show warnings and errors
+    format='%(levelname)s: %(message)s'
 )
 
-# Configure CORS (Cross-Origin Resource Sharing)
-# This allows our React frontend to communicate with backend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # React dev server
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
-)
+# Suppress SQLAlchemy logging
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
 
-app.include_router(api_router)
+# Set application loggers to INFO level (for your custom messages)
+logging.getLogger('app').setLevel(logging.INFO)
 
-# Startup event - runs when server starts
-@app.on_event("startup")
-async def startup_event():
+
+# Lifespan context manager for startup/shutdown events
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """
-    This runs when the server starts.
-    We can add initialization logic here later (like database connection).
+    Lifespan event handler for startup and shutdown
     """
+    # STARTUP
     print(f"{settings.app_name} starting up...")
     print(f"Server running in {'DEBUG' if settings.debug else 'PRODUCTION'} mode")
+    
     # Test database connection
     print("Testing database connection...")
     if test_connection():
         print("Database connected successfully!")
-        create_tables()  # Verify tables exist
+        create_tables()
     else:
         print("Database connection failed!")
-
-# Shutdown event - runs when server stops
-@app.on_event("shutdown")
-async def shutdown_event():
-    """
-    This runs when the server shuts down.
-    We can add cleanup logic here later (like closing database connections).
-    """
+    
+    # Start polling service
+    print("Starting polling service...")
+    await polling_service.start()
+    print("Polling service started!")
+    
+    yield  # Application runs here
+    
+    # SHUTDOWN
     print("Shutting down server...")
+    
+    # Stop polling service
+    print("Stopping polling service...")
+    await polling_service.stop()
+    print("Polling service stopped!")
+    
+    print("Server shutdown complete")
 
+
+# Create FastAPI app with lifespan
+app = FastAPI(
+    title=settings.app_name,
+    debug=settings.debug,
+    description="Modbus RS485 Temperature Monitoring System",
+    version="1.0.0",
+    lifespan=lifespan  # Use lifespan instead of on_event
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include API routes
+app.include_router(api_router)

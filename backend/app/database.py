@@ -12,10 +12,10 @@ from app.config import get_settings
 settings = get_settings()
 
 # Create database engine
-# echo=True shows SQL queries in console (useful for debugging)
+# echo=False disables SQL query logging in console
 engine = create_engine(
     settings.database_url,
-    echo=settings.debug,  # Show SQL queries when DEBUG=True
+    echo=False,           # Disable SQL query logging
     pool_pre_ping=True,   # Test connections before using them
     pool_size=10,         # Number of connections to keep open
     max_overflow=20       # Maximum number of connections to create beyond pool_size
