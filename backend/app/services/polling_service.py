@@ -45,10 +45,10 @@ class PollingService:
         """Stop the polling service"""
         if not self.is_running:
             return
-        
+
         logger.info("Stopping polling service...")
         self.is_running = False
-        
+
         # Cancel polling task
         if self.polling_task:
             self.polling_task.cancel()
@@ -56,14 +56,24 @@ class PollingService:
                 await self.polling_task
             except asyncio.CancelledError:
                 pass
-        
+
         # Flush remaining buffer data to database
         reading_buffer.flush_all()
-        
+
         # Disconnect Modbus
         modbus_service.disconnect()
-        
+
         logger.info("Polling service stopped")
+
+    async def restart(self):
+        """
+        Restart the polling service
+        Useful when device configurations are changed
+        """
+        logger.info("Restarting polling service...")
+        await self.stop()
+        await self.start()
+        logger.info("Polling service restarted")
     
     def _get_enabled_devices(self) -> List[DeviceSettings]:
         """

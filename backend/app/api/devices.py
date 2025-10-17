@@ -5,7 +5,6 @@ from typing import List
 from app.database import get_db
 from app.schemas.device import DeviceCreate, DeviceUpdate, DeviceResponse, DeviceWithLatestReading
 from app.services.device_service import DeviceService
-
 router = APIRouter(
     prefix="/devices",
     tags=["devices"]

@@ -47,4 +47,57 @@ export const healthAPI = {
     },
 };
 
+// ============================================================================
+// READING API FUNCTIONS
+// ============================================================================
+
+export const readingAPI = {
+    /**
+     * Get latest readings for all devices
+     */
+    getLatest: async () => {
+        const response = await api.get('/reading/latest');
+        return response.data;
+    },
+
+    /**
+     * Get reading history for a specific device
+     */
+    getDeviceReadings: async (deviceId, limit = 100) => {
+        const response = await api.get(`/reading/device/${deviceId}?limit=${limit}`);
+        return response.data;
+    },
+
+    /**
+     * Get overall reading statistics
+     */
+    getStats: async () => {
+        const response = await api.get('/reading/stats');
+        return response.data;
+    },
+};
+
+// ============================================================================
+// POLLING API FUNCTIONS
+// ============================================================================
+
+export const pollingAPI = {
+    /**
+     * Get polling service statistics
+     */
+    getStats: async () => {
+        const response = await api.get('/polling/stats');
+        return response.data;
+    },
+
+    /**
+     * Restart the polling service
+     * Call this after updating device configurations
+     */
+    restart: async () => {
+        const response = await api.post('/polling/restart');
+        return response.data;
+    },
+};
+
 export default api;

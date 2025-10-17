@@ -1,16 +1,28 @@
 import { useState, useEffect } from 'react';
 import ConfigModal from '../components/ConfigModal';
-import { deviceAPI } from '../services/api';
+import { deviceAPI, readingAPI, pollingAPI } from '../services/api';
 
 function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     const [devices, setDevices] = useState([]); // Only enabled devices for display
     const [allDevices, setAllDevices] = useState([]); // All devices for modal
+    const [devicesWithReadings, setDevicesWithReadings] = useState([]); // Devices enriched with latest readings
+    const [pollingStats, setPollingStats] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         console.log('Dashboard mounted');
         fetchDevices();
+        fetchLatestReadings();
+        fetchPollingStats();
+
+        // Auto-refresh every 5 seconds
+        const intervalId = setInterval(() => {
+            fetchLatestReadings();
+            fetchPollingStats();
+        }, 5000);
+
+        return () => clearInterval(intervalId);
     }, []);
 
     // Calculate grid columns based on number of devices
@@ -40,6 +52,44 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
         } finally {
             setLoading(false);
         }
+    };
+
+    const fetchLatestReadings = async () => {
+        try {
+            const readings = await readingAPI.getLatest();
+            console.log('Latest readings:', readings);
+            setDevicesWithReadings(readings);
+        } catch (err) {
+            console.error('Error fetching latest readings:', err);
+        }
+    };
+
+    const fetchPollingStats = async () => {
+        try {
+            const stats = await pollingAPI.getStats();
+            console.log('Polling stats:', stats);
+            setPollingStats(stats);
+        } catch (err) {
+            console.error('Error fetching polling stats:', err);
+        }
+    };
+
+    // Helper function to format time ago
+    const formatTimeAgo = (timestamp) => {
+        if (!timestamp) return 'Never';
+
+        const now = new Date();
+        const past = new Date(timestamp);
+        const diffMs = now - past;
+        const diffSec = Math.floor(diffMs / 1000);
+
+        if (diffSec < 60) return `${diffSec}s ago`;
+        const diffMin = Math.floor(diffSec / 60);
+        if (diffMin < 60) return `${diffMin}m ago`;
+        const diffHour = Math.floor(diffMin / 60);
+        if (diffHour < 24) return `${diffHour}h ago`;
+        const diffDay = Math.floor(diffHour / 24);
+        return `${diffDay}d ago`;
     };
 
     const handleSaveDevices = async (configuredDevices) => {
@@ -76,10 +126,18 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                 console.log(`Created device: ${device.name} (enabled: ${device.enabled})`);
             }
 
-            // Step 3: Refresh data from database
+            // Step 3: Restart polling service to reload new device configs
+            console.log('Restarting polling service...');
+            await pollingAPI.restart();
+            console.log('Polling service restarted');
+
+            // Step 4: Refresh data from database
             await fetchDevices();
+            await fetchLatestReadings();
+            await fetchPollingStats();
+
             setConfigModalOpen(false);
-            alert('Devices saved successfully!');
+            alert('Devices saved and polling service restarted successfully!');
         } catch (err) {
             setError('Failed to save devices');
             console.error('Error saving devices:', err);
@@ -92,7 +150,33 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     return (
         <div className="h-screen bg-gray-50 overflow-hidden">
             <div className="container mx-auto px-2 h-full flex flex-col">
-                <div className="flex flex-col gap-2 pt-2" style={{ height: 'calc(100vh - 48px)' }}>
+                {/* Status Bar */}
+                {pollingStats && (
+                    <div className="mt-2 bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-2">
+                        <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center space-x-6">
+                                <div className="flex items-center space-x-2">
+                                    <span className={`w-2 h-2 rounded-full ${pollingStats.is_running ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                                    <span className="text-gray-600">Polling: {pollingStats.is_running ? 'Active' : 'Stopped'}</span>
+                                </div>
+                                <div className="text-gray-600">
+                                    Cycle: <span className="font-semibold text-gray-800">{pollingStats.cycle_count}</span>
+                                </div>
+                                <div className="text-gray-600">
+                                    Buffer: <span className="font-semibold text-gray-800">{pollingStats.buffer_stats?.buffer_a_size + pollingStats.buffer_stats?.buffer_b_size || 0}</span>/{pollingStats.buffer_stats?.max_size || 100}
+                                </div>
+                                <div className="text-gray-600">
+                                    Saved: <span className="font-semibold text-gray-800">{pollingStats.buffer_stats?.total_saved || 0}</span>
+                                </div>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                                Auto-refresh: 5s
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex flex-col gap-2 pt-2" style={{ height: 'calc(100vh - 48px - 48px)' }}>
 
                     <section
                         className="bg-white rounded-lg shadow-md p-3 flex flex-col overflow-hidden"
@@ -118,7 +202,18 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                                     <p className="text-gray-400 text-xs">Click "Configure Devices" to add devices</p>
                                 </div>
                             ) : (
-                                devices.map((device) => <DeviceCard key={device.id} device={device} />)
+                                devices.map((device) => {
+                                    // Find matching reading data for this device
+                                    const readingData = devicesWithReadings.find(r => r.device_id === device.id);
+                                    return (
+                                        <DeviceCard
+                                            key={device.id}
+                                            device={device}
+                                            reading={readingData?.latest_reading}
+                                            formatTimeAgo={formatTimeAgo}
+                                        />
+                                    );
+                                })
                             )}
                         </div>
                     </section>
@@ -158,7 +253,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     );
 }
 
-function DeviceCard({ device }) {
+function DeviceCard({ device, reading, formatTimeAgo }) {
     const getStatusColor = (status) => {
         switch (status) {
             case 'OK': return 'bg-green-100 text-green-800 border-green-300';
@@ -168,28 +263,42 @@ function DeviceCard({ device }) {
         }
     };
 
+    const getCardGradient = (status) => {
+        switch (status) {
+            case 'OK': return 'from-green-50 to-green-100 border-green-200';
+            case 'Stale': return 'from-yellow-50 to-yellow-100 border-yellow-200';
+            case 'Err': return 'from-red-50 to-red-100 border-red-200';
+            default: return 'from-blue-50 to-blue-100 border-blue-200';
+        }
+    };
+
+    const temperature = reading?.temperature;
+    const status = reading?.status || 'N/A';
+    const timestamp = reading?.timestamp;
+    const timeAgo = timestamp ? formatTimeAgo(timestamp) : 'Never';
+
     return (
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200 hover:shadow-lg transition flex flex-col justify-between min-h-0">
+        <div className={`bg-gradient-to-br ${getCardGradient(status)} rounded-lg p-2 border hover:shadow-lg transition flex flex-col justify-between min-h-0`}>
             <div className="flex items-center justify-between mb-1">
                 <h3 className="font-semibold text-gray-800 text-xs truncate flex-1">{device.name}</h3>
                 <span className="text-[10px] text-gray-500 ml-1">ID:{device.slave_id}</span>
             </div>
 
             <div className="text-center flex-1 flex items-center justify-center min-h-0">
-                <div className="text-xl lg:text-2xl font-bold text-blue-600">
-                    {device.temperature || '--'}°C
+                <div className={`text-xl lg:text-2xl font-bold ${status === 'OK' ? 'text-green-600' : status === 'Err' ? 'text-red-600' : 'text-gray-600'}`}>
+                    {temperature !== null && temperature !== undefined ? `${temperature.toFixed(1)}°C` : '--°C'}
                 </div>
             </div>
 
             <div className="space-y-0.5">
                 <div className="flex items-center justify-between text-[10px]">
                     <span className="text-gray-600 truncate">{device.com_port}</span>
-                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium border ${getStatusColor(device.status || 'N/A')}`}>
-                        {device.status || 'N/A'}
+                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium border ${getStatusColor(status)}`}>
+                        {status}
                     </span>
                 </div>
                 <div className="text-[10px] text-gray-500 text-center truncate">
-                    {device.last_updated || 'Never'}
+                    {timeAgo}
                 </div>
             </div>
         </div>
