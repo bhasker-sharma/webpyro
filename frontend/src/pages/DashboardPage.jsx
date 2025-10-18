@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import ConfigModal from '../components/ConfigModal';
 import { deviceAPI, readingAPI, pollingAPI } from '../services/api';
+import { websocketService } from '../services/websocket';
 
 function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     const [devices, setDevices] = useState([]); // Only enabled devices for display
@@ -9,20 +10,86 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     const [pollingStats, setPollingStats] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [wsConnected, setWsConnected] = useState(false); // WebSocket connection state
 
     useEffect(() => {
         console.log('Dashboard mounted');
         fetchDevices();
-        fetchLatestReadings();
         fetchPollingStats();
+        // Note: We do NOT fetch readings from database on mount
+        // Readings will only come from WebSocket
 
-        // Auto-refresh every 5 seconds
+        // Connect to WebSocket for real-time updates
+        websocketService.connect('ws://localhost:8000/api/ws');
+
+        // Handle WebSocket connection state changes
+        const handleConnection = (data) => {
+            console.log('WebSocket connection state:', data.connected);
+            setWsConnected(data.connected);
+
+            // Clear readings when WebSocket disconnects
+            if (!data.connected) {
+                console.log('WebSocket disconnected - clearing readings');
+                setDevicesWithReadings([]);
+            }
+        };
+
+        // Listen for real-time reading updates
+        const handleReadingUpdate = (data) => {
+            console.log('🔥 Real-time reading:', data);
+
+            // Update the device reading immediately
+            setDevicesWithReadings(prev => {
+                const updated = [...prev];
+                const index = updated.findIndex(r => r.device_id === data.device_id);
+
+                if (index !== -1) {
+                    // Update existing device
+                    updated[index] = {
+                        ...updated[index],
+                        latest_reading: {
+                            temperature: data.temperature,
+                            status: data.status,
+                            timestamp: data.timestamp,
+                            raw_hex: data.raw_hex,
+                            error_message: data.error_message || ''
+                        }
+                    };
+                } else {
+                    // Add new device reading
+                    updated.push({
+                        device_id: data.device_id,
+                        device_name: data.device_name,
+                        latest_reading: {
+                            temperature: data.temperature,
+                            status: data.status,
+                            timestamp: data.timestamp,
+                            raw_hex: data.raw_hex,
+                            error_message: data.error_message || ''
+                        }
+                    });
+                }
+
+                return updated;
+            });
+        };
+
+        // Register WebSocket event listeners
+        websocketService.on('connection', handleConnection);
+        websocketService.on('reading_update', handleReadingUpdate);
+
+        // Only poll for stats (NOT readings from database)
         const intervalId = setInterval(() => {
-            fetchLatestReadings();
             fetchPollingStats();
         }, 5000);
 
-        return () => clearInterval(intervalId);
+        // Cleanup on unmount
+        return () => {
+            clearInterval(intervalId);
+            websocketService.off('connection', handleConnection);
+            websocketService.off('reading_update', handleReadingUpdate);
+            websocketService.disconnect();
+        };
     }, []);
 
     // Calculate grid columns based on number of devices
@@ -155,8 +222,26 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                     <div className="mt-2 bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-2">
                         <div className="flex items-center justify-between text-sm">
                             <div className="flex items-center space-x-6">
+                                {/* WebSocket Connection Status */}
                                 <div className="flex items-center space-x-2">
-                                    <span className={`w-2 h-2 rounded-full ${pollingStats.is_running ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                                    <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                                    <span className={`font-medium ${wsConnected ? 'text-green-600' : 'text-red-600'}`}>
+                                        WebSocket: {wsConnected ? 'Connected' : 'Disconnected'}
+                                    </span>
+                                </div>
+
+                                {/* Show warning icon when disconnected */}
+                                {!wsConnected && (
+                                    <div className="flex items-center space-x-1 text-red-600">
+                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                        <span className="text-xs">Real-time updates unavailable</span>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center space-x-2">
+                                    <span className={`w-2 h-2 rounded-full ${pollingStats.is_running ? 'bg-blue-500 animate-pulse' : 'bg-gray-500'}`}></span>
                                     <span className="text-gray-600">Polling: {pollingStats.is_running ? 'Active' : 'Stopped'}</span>
                                 </div>
                                 <div className="text-gray-600">
@@ -170,7 +255,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                                 </div>
                             </div>
                             <div className="text-xs text-gray-500">
-                                Auto-refresh: 5s
+                                Real-time mode
                             </div>
                         </div>
                     </div>
@@ -193,7 +278,16 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                         </div>
 
                         <div className={`grid ${getGridColumns()} auto-rows-fr gap-2 flex-1 overflow-hidden min-h-0`}>
-                            {devices.length === 0 ? (
+                            {!wsConnected ? (
+                                <div className="col-span-full flex flex-col items-center justify-center">
+                                    <svg className="w-16 h-16 text-red-400 mb-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                    </svg>
+                                    <p className="text-red-600 text-lg font-semibold mb-1">WebSocket Disconnected</p>
+                                    <p className="text-gray-500 text-sm mb-2">Real-time data unavailable</p>
+                                    <p className="text-gray-400 text-xs">Attempting to reconnect...</p>
+                                </div>
+                            ) : devices.length === 0 ? (
                                 <div className="col-span-full flex flex-col items-center justify-center">
                                     <svg className="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -276,6 +370,7 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
     const status = reading?.status || 'N/A';
     const timestamp = reading?.timestamp;
     const timeAgo = timestamp ? formatTimeAgo(timestamp) : 'Never';
+    const errorMessage = reading?.error_message || '';
 
     return (
         <div className={`bg-gradient-to-br ${getCardGradient(status)} rounded-lg p-2 border hover:shadow-lg transition flex flex-col justify-between min-h-0`}>
@@ -284,10 +379,29 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
                 <span className="text-[10px] text-gray-500 ml-1">ID:{device.slave_id}</span>
             </div>
 
-            <div className="text-center flex-1 flex items-center justify-center min-h-0">
-                <div className={`text-xl lg:text-2xl font-bold ${status === 'OK' ? 'text-green-600' : status === 'Err' ? 'text-red-600' : 'text-gray-600'}`}>
-                    {temperature !== null && temperature !== undefined ? `${temperature.toFixed(1)}°C` : '--°C'}
-                </div>
+            <div className="text-center flex-1 flex flex-col items-center justify-center min-h-0">
+                {status === 'Err' ? (
+                    <>
+                        {/* Error Icon */}
+                        <svg className="w-8 h-8 text-red-500 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        {/* Temperature or placeholder */}
+                        <div className="text-xl lg:text-2xl font-bold text-red-600">
+                            {temperature !== null && temperature !== undefined ? `${temperature.toFixed(1)}°C` : '--°C'}
+                        </div>
+                        {/* Error Message */}
+                        {errorMessage && (
+                            <div className="text-[10px] text-red-700 font-medium mt-1 px-2 text-center line-clamp-2">
+                                {errorMessage}
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <div className={`text-xl lg:text-2xl font-bold ${status === 'OK' ? 'text-green-600' : 'text-gray-600'}`}>
+                        {temperature !== null && temperature !== undefined ? `${temperature.toFixed(1)}°C` : '--°C'}
+                    </div>
+                )}
             </div>
 
             <div className="space-y-0.5">

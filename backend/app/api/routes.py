@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session  
 from typing import List, Dict
 from app.api.devices import router as devices_router
+from app.api.websocket import router as websocket_router  # WebSocket routes
 from app.database import get_db, engine  
 from sqlalchemy import text
 from app.models.device import DeviceSettings, DeviceReading
@@ -38,6 +39,7 @@ async def api_root():
             "readings_stats":"/api/readings/stats",
             "polling_stats": "/api/polling/stats",
             "polling_restart": "/api/polling/restart",
+            "websocket": "/api/ws",
             "docs": "/docs"
         }
     }
@@ -197,3 +199,6 @@ async def debug_readings(db: Session = Depends(get_db)):
 
 # Include device routes (they have their own /api/devices prefix)
 router.include_router(devices_router, tags=["devices"])
+
+# Include WebSocket routes (for real-time data streaming)
+router.include_router(websocket_router, tags=["websocket"])

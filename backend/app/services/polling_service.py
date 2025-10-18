@@ -13,6 +13,7 @@ from app.database import SessionLocal
 from app.models.device import DeviceSettings
 from app.services.modbus_service import modbus_service
 from app.services.buffer_service import reading_buffer
+from app.services.websocket_service import websocket_manager
 
 logger = logging.getLogger(__name__)
 
@@ -148,9 +149,21 @@ class PollingService:
                     
                     # Add to buffer (will be saved to DB when buffer is full)
                     reading_buffer.add_reading(reading_data)
-                    
-                    # TODO: Broadcast to WebSocket clients (will add in next step)
-                    
+
+                    # Broadcast to WebSocket clients immediately for real-time updates
+                    await websocket_manager.broadcast({
+                        'type': 'reading_update',
+                        'data': {
+                            'device_id': result['device_id'],
+                            'device_name': result['device_name'],
+                            'temperature': result['temperature'],
+                            'status': result['status'],
+                            'raw_hex': result['raw_hex'],
+                            'timestamp': result['timestamp'],
+                            'error_message': result.get('error_message', '')  # Include error message
+                        }
+                    })
+
                     # Log reading
                     if result['status'] == 'OK':
                         logger.debug(f"Device {device.name}: {result['temperature']}C")
@@ -165,7 +178,7 @@ class PollingService:
                 
                 # Optional: Small delay between cycles (give devices a rest)
                 # Comment out this line if you want continuous reading
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.1)
                 
             except asyncio.CancelledError:
                 logger.debug("Polling loop cancelled")
