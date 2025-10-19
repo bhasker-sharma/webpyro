@@ -4,3 +4,4 @@ __pycache__/
 *.pyo
 *__init__.py
 frontend/node_modules/
+*nul

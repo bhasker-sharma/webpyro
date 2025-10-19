@@ -19,6 +19,7 @@ class DeviceBase(BaseModel):
     baud_rate: int = Field(9600, description="Baud rate for communication")
     com_port: str = Field(..., max_length=20, description="COM port (e.g., COM3)")
     enabled: bool = Field(True, description="Device enabled status")
+    show_in_graph: bool = Field(False, description="Show device data in graph")
     register_address: int = Field(..., ge=0, description="Register address")
     function_code: int = Field(3, ge=1, le=4, description="Modbus function code (3 or 4)")
     start_register: int = Field(..., ge=0, description="Starting register")
@@ -52,6 +53,7 @@ class DeviceUpdate(BaseModel):
     baud_rate: Optional[int] = None
     com_port: Optional[str] = Field(None, max_length=20)
     enabled: Optional[bool] = None
+    show_in_graph: Optional[bool] = None
     register_address: Optional[int] = Field(None, ge=0)
     function_code: Optional[int] = Field(None, ge=1, le=4)
     start_register: Optional[int] = Field(None, ge=0)

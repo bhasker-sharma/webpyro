@@ -183,6 +183,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                     baud_rate: device.baud_rate,
                     com_port: device.com_port,
                     enabled: device.enabled, // Respect the toggle state
+                    show_in_graph: device.show_in_graph || false, // Graph display toggle
                     register_address: device.register_address,
                     function_code: device.function_code,
                     start_register: device.start_register,
@@ -190,7 +191,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                 };
 
                 await deviceAPI.create(devicePayload);
-                console.log(`Created device: ${device.name} (enabled: ${device.enabled})`);
+                console.log(`Created device: ${device.name} (enabled: ${device.enabled}, show_in_graph: ${device.show_in_graph})`);
             }
 
             // Step 3: Restart polling service to reload new device configs

@@ -22,6 +22,7 @@ class DeviceSettings(Base):
     baud_rate = Column(Integer, nullable=False, default=9600)
     com_port = Column(String(20), nullable=False)
     enabled = Column(Boolean, default=True, index=True)
+    show_in_graph = Column(Boolean, default=False, index=True)
     register_address = Column(Integer, nullable=False)
     function_code = Column(Integer, nullable=False, default=3)
     start_register = Column(Integer, nullable=False)

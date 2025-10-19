@@ -13,6 +13,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
         try {
             if (devices && devices.length > 0) {
                 // Load existing devices from database
+                console.log('Loading devices from backend:', devices);
                 setConfigDevices(devices);
             } else {
                 // Start with one empty row if no devices exist
@@ -31,6 +32,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
             baud_rate: 9600,
             com_port: 'COM3',
             enabled: true,
+            show_in_graph: false,
             register_address: 0,
             function_code: 3,
             start_register: 0,
@@ -47,7 +49,20 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
     const handleToggleEnable = (index) => {
         const updated = [...configDevices];
         updated[index] = { ...updated[index], enabled: !updated[index].enabled };
+        // If disabling a device, also uncheck graph
+        if (!updated[index].enabled) {
+            updated[index].show_in_graph = false;
+        }
         setConfigDevices(updated);
+    };
+
+    const handleToggleGraph = (index) => {
+        const updated = [...configDevices];
+        // Only allow toggling graph if device is enabled
+        if (updated[index].enabled) {
+            updated[index] = { ...updated[index], show_in_graph: !updated[index].show_in_graph };
+            setConfigDevices(updated);
+        }
     };
 
     const handleAddRow = () => {
@@ -70,6 +85,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
     const handleSave = () => {
         // Pass only the devices that are in the table (no filtering, ALL rows)
+        console.log('Saving devices:', configDevices);
         onSave(configDevices);
         onClose();
     };
@@ -108,6 +124,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                             <thead className="bg-gray-100 sticky top-0">
                                 <tr>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Enable</th>
+                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Graph</th>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Device #</th>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Name</th>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Slave ID</th>
@@ -130,6 +147,19 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                             >
                                                 <div className={`w-5 h-5 bg-white rounded-full shadow transform transition ${device.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
                                             </button>
+                                        </td>
+                                        <td className="border border-gray-300 px-2 py-2 text-center">
+                                            {device.enabled ? (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={device.show_in_graph || false}
+                                                    onChange={() => handleToggleGraph(index)}
+                                                    className="w-5 h-5 cursor-pointer accent-blue-600"
+                                                    title="Show in graph"
+                                                />
+                                            ) : (
+                                                <span className="text-gray-300 text-xs">—</span>
+                                            )}
                                         </td>
                                         <td className="border border-gray-300 px-2 py-2 text-center font-semibold text-sm">
                                             {index + 1}
@@ -245,7 +275,9 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
                 <div className="flex items-center justify-between p-4 border-t bg-gray-50">
                     <div className="text-sm text-gray-600">
-                        <span className="font-semibold">{configDevices.filter(d => d.enabled).length}</span> enabled / <span className="font-semibold">{configDevices.length}</span> total
+                        <span className="font-semibold">{configDevices.filter(d => d.enabled).length}</span> enabled /
+                        <span className="font-semibold ml-2">{configDevices.filter(d => d.show_in_graph).length}</span> in graph /
+                        <span className="font-semibold ml-2">{configDevices.length}</span> total
                     </div>
                     <div className="flex space-x-3">
                         <button
