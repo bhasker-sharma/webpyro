@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import ConfigModal from '../components/ConfigModal';
+import GraphSection from '../components/GraphSection';
 import { deviceAPI, readingAPI, pollingAPI } from '../services/api';
 import { websocketService } from '../services/websocket';
 
@@ -324,14 +325,11 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                             <span>Temperature Trends</span>
                         </h2>
 
-                        <div className="flex-1 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
-                            <div className="text-center">
-                                <svg className="w-12 h-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                                </svg>
-                                <p className="text-gray-400 text-sm">Graphs Section</p>
-                                <p className="text-gray-400 text-xs">Future implementation</p>
-                            </div>
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                            <GraphSection
+                                devices={devices}
+                                devicesWithReadings={devicesWithReadings}
+                            />
                         </div>
                     </section>
 
