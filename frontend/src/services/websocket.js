@@ -25,14 +25,12 @@ class WebSocketService {
             this.ws = new WebSocket(url);
 
             this.ws.onopen = () => {
-                console.log('✅ WebSocket connected');
                 this.notifyListeners('connection', { connected: true });
             };
 
             this.ws.onmessage = (event) => {
                 try {
                     const message = JSON.parse(event.data);
-                    console.log('📩 WebSocket message:', message);
                     this.notifyListeners(message.type, message.data);
                 } catch (err) {
                     console.error('Error parsing WebSocket message:', err);

@@ -37,8 +37,6 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
 
         // Listen for real-time reading updates
         const handleReadingUpdate = (data) => {
-            console.log('🔥 Real-time reading:', data);
-
             // Update the device reading immediately
             setDevicesWithReadings(prev => {
                 const updated = [...prev];
