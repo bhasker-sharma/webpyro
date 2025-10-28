@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useState } from 'react';
 import Navbar from './components/Navbar';
 import DashboardPage from './pages/DashboardPage';
+import PreviewPage from './pages/PreviewPage';
 
 function App() {
   const [configModalOpen, setConfigModalOpen] = useState(false);
@@ -22,6 +23,7 @@ function App() {
                 />
               }
             />
+            <Route path="/preview" element={<PreviewPage />} />
           </Routes>
         </main>
       </div>

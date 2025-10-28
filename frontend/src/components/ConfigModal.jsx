@@ -137,7 +137,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
                 <div className="flex-1 overflow-auto p-4">
                     <div className="mb-4 text-sm text-gray-600">
-                        Add devices one by one (maximum 16 devices). Use the + button to add new rows, - button to delete rows, and toggle to enable/disable devices.
+                        Add devices one by one (maximum 16 devices). Use the + button to add new rows, - button to delete rows, and toggle to enable/disable devices. Toggle to enable, select if graph is needed and add name of the location of pyrometer , enter instrument id from 1- 16 and baud rate depending on Id and baud rate entered in the respective pyrometer.
                     </div>
 
                     {/* Common Configuration Section */}
@@ -209,11 +209,11 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                         <table className="w-full border-collapse border border-gray-300">
                             <thead className="bg-gray-100 sticky top-0">
                                 <tr>
+                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Sr No </th>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Enable</th>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Graph</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Device #</th>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Name</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Slave ID</th>
+                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Instrument ID (1 -16) </th>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Baud Rate</th>
                                     <th className="border border-gray-300 px-2 py-2 text-center text-xs font-semibold">Action</th>
                                 </tr>
@@ -221,6 +221,9 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                             <tbody>
                                 {configDevices.map((device, index) => (
                                     <tr key={index} className={device.enabled ? "bg-blue-50" : "bg-white"}>
+                                        <td className="border border-gray-300 px-2 py-2 text-center font-semibold text-sm">
+                                            {index + 1}
+                                        </td>
                                         <td className="border border-gray-300 px-2 py-2 text-center">
                                             <button
                                                 onClick={() => handleToggleEnable(index)}
@@ -241,9 +244,6 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                             ) : (
                                                 <span className="text-gray-300 text-xs">—</span>
                                             )}
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2 text-center font-semibold text-sm">
-                                            {index + 1}
                                         </td>
                                         <td className="border border-gray-300 px-2 py-2">
                                             <input
