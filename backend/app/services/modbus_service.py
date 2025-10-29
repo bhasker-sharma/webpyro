@@ -77,7 +77,7 @@ class ModbusService:
         if self.client:
             try:
                 self.client.close()
-                logger.info(f"Disconnected from {self.current_port}")
+                logger.debug(f"Disconnected from {self.current_port}")
             except Exception as e:
                 logger.error(f"Error disconnecting: {e}")
             finally:
