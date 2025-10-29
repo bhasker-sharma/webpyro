@@ -20,10 +20,11 @@ class DeviceBase(BaseModel):
     com_port: str = Field(..., max_length=20, description="COM port (e.g., COM3)")
     enabled: bool = Field(True, description="Device enabled status")
     show_in_graph: bool = Field(False, description="Show device data in graph")
-    register_address: int = Field(..., ge=0, description="Register address")
-    function_code: int = Field(3, ge=1, le=4, description="Modbus function code (3 or 4)")
-    start_register: int = Field(..., ge=0, description="Starting register")
-    register_count: int = Field(2, ge=1, description="Number of registers to read")
+    # These fields are populated from .env and not required from client
+    register_address: Optional[int] = Field(None, ge=0, description="Register address (populated from .env)")
+    function_code: Optional[int] = Field(None, ge=1, le=4, description="Modbus function code (populated from .env)")
+    start_register: Optional[int] = Field(None, ge=0, description="Starting register (populated from .env)")
+    register_count: Optional[int] = Field(None, ge=1, description="Number of registers to read (populated from .env)")
 
     @validator('baud_rate')
     def validate_baud_rate(cls, v):

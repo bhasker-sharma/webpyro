@@ -4,11 +4,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
     const [configDevices, setConfigDevices] = useState([]);
     // Common configuration fields for all devices
     const [commonConfig, setCommonConfig] = useState({
-        com_port: 'COM3',
-        register_address: 0,
-        function_code: 3,
-        start_register: 0,
-        register_count: 2
+        com_port: 'COM3'
     });
 
     useEffect(() => {
@@ -25,11 +21,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                 // Extract common config from the first device
                 if (devices[0]) {
                     setCommonConfig({
-                        com_port: devices[0].com_port || 'COM3',
-                        register_address: devices[0].register_address || 0,
-                        function_code: devices[0].function_code || 3,
-                        start_register: devices[0].start_register || 0,
-                        register_count: devices[0].register_count || 2
+                        com_port: devices[0].com_port || 'COM3'
                     });
                 }
                 setConfigDevices(devices);
@@ -148,59 +140,18 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                             </svg>
                             Common Configuration (Applied to All Devices)
                         </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">COM Port</label>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <label className="text-xs font-medium text-gray-700">COM Port:</label>
                                 <select
                                     value={commonConfig.com_port}
                                     onChange={(e) => handleCommonConfigChange('com_port', e.target.value)}
-                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
+                                    className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
                                 >
                                     {Array.from({ length: 20 }, (_, i) => (
                                         <option key={i} value={`COM${i + 1}`}>COM{i + 1}</option>
                                     ))}
                                 </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Register Addr</label>
-                                <input
-                                    type="number"
-                                    value={commonConfig.register_address}
-                                    onChange={(e) => handleCommonConfigChange('register_address', parseInt(e.target.value) || 0)}
-                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
-                                    min="0"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Function Code</label>
-                                <select
-                                    value={commonConfig.function_code}
-                                    onChange={(e) => handleCommonConfigChange('function_code', parseInt(e.target.value))}
-                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
-                                >
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Start Reg</label>
-                                <input
-                                    type="number"
-                                    value={commonConfig.start_register}
-                                    onChange={(e) => handleCommonConfigChange('start_register', parseInt(e.target.value) || 0)}
-                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
-                                    min="0"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Reg Count</label>
-                                <input
-                                    type="number"
-                                    value={commonConfig.register_count}
-                                    onChange={(e) => handleCommonConfigChange('register_count', parseInt(e.target.value) || 1)}
-                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
-                                    min="1"
-                                />
                             </div>
                         </div>
                     </div>
