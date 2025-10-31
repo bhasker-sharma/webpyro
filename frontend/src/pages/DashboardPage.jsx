@@ -20,8 +20,8 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
         // Note: We do NOT fetch readings from database on mount
         // Readings will only come from WebSocket
 
-        // Connect to WebSocket for real-time updates
-        websocketService.connect('ws://localhost:8000/api/ws');
+        // Connect to WebSocket for real-time updates (auto-detects correct URL)
+        websocketService.connect();
 
         // Handle WebSocket connection state changes
         const handleConnection = (data) => {
