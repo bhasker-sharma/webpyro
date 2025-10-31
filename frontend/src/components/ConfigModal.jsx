@@ -140,9 +140,9 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                             </svg>
                             Common Configuration (Applied to All Devices)
                         </h3>
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <label className="text-xs font-medium text-gray-700">COM Port:</label>
+                        <div className="max-w-xs">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">COM Port</label>
                                 <select
                                     value={commonConfig.com_port}
                                     onChange={(e) => handleCommonConfigChange('com_port', e.target.value)}
@@ -153,6 +153,9 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                     ))}
                                 </select>
                             </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                                Note: Register settings are configured in backend .env file
+                            </p>
                         </div>
                     </div>
 

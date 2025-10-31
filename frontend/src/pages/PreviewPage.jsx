@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 function PreviewPage() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [selectedDevices, setSelectedDevices] = useState([]);
+    const [selectedDevice, setSelectedDevice] = useState('');
+    const [devices, setDevices] = useState([]);
     const [previewData, setPreviewData] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
     // Set default datetime values on mount
     useEffect(() => {
@@ -25,39 +31,181 @@ function PreviewPage() {
 
         setStartDate(formatDateTime(today));
         setEndDate(formatDateTime(endOfDay));
+
+        // Fetch devices on mount
+        fetchDevices();
     }, []);
 
-    const handleFilter = async () => {
-        setLoading(true);
+    const fetchDevices = async () => {
         try {
-            // TODO: Implement API call to filter data
-            console.log('Filtering data...', { startDate, endDate, selectedDevices });
-            // Placeholder: will implement actual API call later
-        } catch (error) {
-            console.error('Error filtering data:', error);
+            const response = await fetch(`${API_BASE_URL}/api/devices`);
+            if (!response.ok) throw new Error('Failed to fetch devices');
+            const data = await response.json();
+            setDevices(data);
+        } catch (err) {
+            console.error('Error fetching devices:', err);
+            setError('Failed to load devices');
+        }
+    };
+
+    const handleFilter = async () => {
+        if (!selectedDevice) {
+            setError('Please select a device');
+            return;
+        }
+
+        if (!startDate || !endDate) {
+            setError('Please select both start and end date');
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            // Convert datetime-local format to ISO format for API
+            const startISO = new Date(startDate).toISOString();
+            const endISO = new Date(endDate).toISOString();
+
+            const url = `${API_BASE_URL}/api/reading/filter?device_id=${selectedDevice}&start_date=${startISO}&end_date=${endISO}`;
+            const response = await fetch(url);
+
+            if (!response.ok) throw new Error('Failed to fetch readings');
+
+            const data = await response.json();
+            setPreviewData(data.readings || []);
+
+            if (data.readings.length === 0) {
+                setError('No data found for the selected filters');
+            }
+        } catch (err) {
+            console.error('Error filtering data:', err);
+            setError('Failed to load data. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleGenerateReport = () => {
-        console.log('Generating report...');
-        // TODO: Implement report generation
+    const handleExportCSV = async () => {
+        if (!selectedDevice) {
+            setError('Please select a device');
+            return;
+        }
+
+        if (!startDate || !endDate) {
+            setError('Please select both start and end date');
+            return;
+        }
+
+        try {
+            const startISO = new Date(startDate).toISOString();
+            const endISO = new Date(endDate).toISOString();
+
+            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice}&start_date=${startISO}&end_date=${endISO}`;
+
+            // Get device name for filename
+            const deviceName = devices.find(d => d.id == selectedDevice)?.name || 'device';
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const filename = `${deviceName}_readings_${timestamp}.csv`;
+
+            // Fetch the CSV data
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch CSV');
+            const blob = await response.blob();
+
+            // Check if File System Access API is supported
+            if ('showSaveFilePicker' in window) {
+                try {
+                    // Show save dialog
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: filename,
+                        types: [{
+                            description: 'CSV Files',
+                            accept: { 'text/csv': ['.csv'] }
+                        }]
+                    });
+
+                    // Write the file
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+
+                    setError(null);
+                    alert('File saved successfully!');
+                } catch (err) {
+                    // User cancelled the dialog
+                    if (err.name !== 'AbortError') {
+                        throw err;
+                    }
+                }
+            } else {
+                // Fallback for browsers that don't support File System Access API
+                const blobUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(blobUrl);
+
+                setError(null);
+            }
+        } catch (err) {
+            console.error('Error exporting data:', err);
+            setError('Failed to export data. Please try again.');
+        }
     };
 
-    const handleExtractData = () => {
-        console.log('Extracting data...');
-        // TODO: Implement data extraction (CSV, Excel, etc.)
+    const formatDateTime = (isoString) => {
+        if (!isoString) return 'N/A';
+        const date = new Date(isoString);
+        return date.toLocaleString();
     };
+
+    const formatTimeForGraph = (timestamp) => {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+    };
+
+    // Prepare graph data from preview data
+    const graphData = previewData.map(reading => ({
+        timestamp: new Date(reading.timestamp).getTime(),
+        temperature: reading.value,
+        timestampStr: reading.timestamp
+    })).sort((a, b) => a.timestamp - b.timestamp);
 
     return (
         <div className="min-h-screen bg-gray-50">
             <div className="container mx-auto px-4 py-6">
                 {/* Header */}
-                <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800 mb-2">Data Preview & Reports</h1>
-                    <p className="text-gray-600">Filter historical data, generate reports, and extract information</p>
+                <div className="mb-6 flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">Data Preview & Export</h1>
+                        <p className="text-gray-600">Filter historical data and export to CSV</p>
+                    </div>
+                    <Link
+                        to="/"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center space-x-2 font-medium shadow-md"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        <span>Dashboard</span>
+                    </Link>
                 </div>
+
+                {/* Error Message */}
+                {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                        {error}
+                    </div>
+                )}
 
                 {/* Filter Section */}
                 <div className="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -80,7 +228,6 @@ function PreviewPage() {
                                 onChange={(e) => setStartDate(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 step="60"
-                                placeholder="DD/MM/YYYY HH:MM"
                             />
                         </div>
 
@@ -95,59 +242,77 @@ function PreviewPage() {
                                 onChange={(e) => setEndDate(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 step="60"
-                                placeholder="DD/MM/YYYY HH:MM"
                             />
                         </div>
 
                         {/* Device Selection */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Select Devices
+                                Select Device
                             </label>
                             <select
-                                multiple
-                                value={selectedDevices}
-                                onChange={(e) => setSelectedDevices(Array.from(e.target.selectedOptions, option => option.value))}
+                                value={selectedDevice}
+                                onChange={(e) => setSelectedDevice(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                size="3"
                             >
-                                <option value="all">All Devices</option>
-                                {/* TODO: Load devices from API */}
+                                <option value="">-- Select a Device --</option>
+                                {devices.map((device) => (
+                                    <option key={device.id} value={device.id}>
+                                        {device.name}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleFilter}
-                        disabled={loading}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
-                    >
-                        {loading ? (
-                            <>
-                                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <span>Loading...</span>
-                            </>
-                        ) : (
-                            <>
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                                <span>Apply Filter</span>
-                            </>
-                        )}
-                    </button>
+                    {/* Action Buttons */}
+                    <div className="flex space-x-4">
+                        <button
+                            onClick={handleFilter}
+                            disabled={loading}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
+                        >
+                            {loading ? (
+                                <>
+                                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>Loading...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <span>Apply Filter</span>
+                                </>
+                            )}
+                        </button>
+
+                        <button
+                            onClick={handleExportCSV}
+                            disabled={previewData.length === 0}
+                            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span>Export to CSV</span>
+                        </button>
+                    </div>
                 </div>
 
-                {/* Data Preview Section */}
-                <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                {/* Data Preview Section - Split View */}
+                <div className="bg-white rounded-lg shadow-md p-6">
                     <h2 className="text-xl font-semibold text-gray-700 mb-4 flex items-center space-x-2">
                         <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         <span>Data Preview</span>
+                        {previewData.length > 0 && (
+                            <span className="text-sm text-gray-500 ml-2">({previewData.length} records)</span>
+                        )}
                     </h2>
 
                     {previewData.length === 0 ? (
@@ -159,36 +324,126 @@ function PreviewPage() {
                             <p className="text-gray-400 text-sm mt-2">Apply filters to preview data</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            {/* TODO: Add data table here */}
-                            <p className="text-gray-600">Data table will be displayed here</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* Left Side - Data Table with Scroll */}
+                            <div className="border border-gray-200 rounded-lg">
+                                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 rounded-t-lg">
+                                    <h3 className="text-sm font-semibold text-gray-700">Filtered Data</h3>
+                                </div>
+                                <div className="overflow-auto" style={{ maxHeight: '500px' }}>
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50 sticky top-0">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Serial No.
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Timestamp
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Value
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Status
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {previewData.map((reading, index) => (
+                                                <tr key={reading.id} className="hover:bg-gray-50">
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                                        {index + 1}
+                                                    </td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                                        {formatDateTime(reading.timestamp)}
+                                                    </td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                                        {reading.value}°C
+                                                    </td>
+                                                    <td className="px-4 py-3 whitespace-nowrap">
+                                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                            reading.status === 'OK'
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : reading.status === 'Err'
+                                                                ? 'bg-red-100 text-red-800'
+                                                                : 'bg-yellow-100 text-yellow-800'
+                                                        }`}>
+                                                            {reading.status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Right Side - Graph */}
+                            <div className="border border-gray-200 rounded-lg">
+                                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 rounded-t-lg">
+                                    <h3 className="text-sm font-semibold text-gray-700">Temperature vs Time</h3>
+                                </div>
+                                <div className="p-4" style={{ height: '500px' }}>
+                                    {graphData.length === 0 ? (
+                                        <div className="flex items-center justify-center h-full">
+                                            <div className="text-center">
+                                                <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                                                </svg>
+                                                <p className="text-gray-500 text-sm">No graph data available</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={graphData} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                                <XAxis
+                                                    dataKey="timestamp"
+                                                    type="number"
+                                                    domain={['dataMin', 'dataMax']}
+                                                    tickFormatter={formatTimeForGraph}
+                                                    stroke="#6b7280"
+                                                    style={{ fontSize: '11px' }}
+                                                    scale="time"
+                                                />
+                                                <YAxis
+                                                    stroke="#6b7280"
+                                                    style={{ fontSize: '11px' }}
+                                                    label={{
+                                                        value: 'Temperature (°C)',
+                                                        angle: -90,
+                                                        position: 'insideLeft',
+                                                        style: { fontSize: '12px', fill: '#6b7280' }
+                                                    }}
+                                                    domain={['auto', 'auto']}
+                                                />
+                                                <Tooltip
+                                                    labelFormatter={formatTimeForGraph}
+                                                    contentStyle={{
+                                                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                                        border: '1px solid #d1d5db',
+                                                        borderRadius: '6px',
+                                                        fontSize: '12px'
+                                                    }}
+                                                    formatter={(value) => [`${value.toFixed(1)}°C`, 'Temperature']}
+                                                />
+                                                <Line
+                                                    type="monotone"
+                                                    dataKey="temperature"
+                                                    stroke="#3b82f6"
+                                                    strokeWidth={2}
+                                                    dot={false}
+                                                    name="Temperature"
+                                                    connectNulls={true}
+                                                    isAnimationActive={false}
+                                                />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex space-x-4">
-                    <button
-                        onClick={handleGenerateReport}
-                        disabled={previewData.length === 0}
-                        className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span>Generate Report</span>
-                    </button>
-
-                    <button
-                        onClick={handleExtractData}
-                        disabled={previewData.length === 0}
-                        className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span>Extract Data</span>
-                    </button>
                 </div>
             </div>
         </div>
