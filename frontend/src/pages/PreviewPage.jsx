@@ -2,7 +2,20 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Get API base URL from environment variable or auto-detect from current hostname
+const getApiBaseUrl = () => {
+    // If environment variable is set, use it
+    if (import.meta.env.VITE_API_BASE_URL) {
+        return import.meta.env.VITE_API_BASE_URL;
+    }
+
+    // Otherwise, auto-detect based on current hostname
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:8000`;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 function PreviewPage() {
     const [startDate, setStartDate] = useState('');
