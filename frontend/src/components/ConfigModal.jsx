@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 
 function ConfigModal({ isOpen, onClose, devices, onSave }) {
     const [configDevices, setConfigDevices] = useState([]);
+    // Common configuration fields for all devices
+    const [commonConfig, setCommonConfig] = useState({
+        com_port: 'COM3'
+    });
 
     useEffect(() => {
         if (isOpen) {
@@ -14,6 +18,12 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
             if (devices && devices.length > 0) {
                 // Load existing devices from database
                 console.log('Loading devices from backend:', devices);
+                // Extract common config from the first device
+                if (devices[0]) {
+                    setCommonConfig({
+                        com_port: devices[0].com_port || 'COM3'
+                    });
+                }
                 setConfigDevices(devices);
             } else {
                 // Start with one empty row if no devices exist
@@ -30,14 +40,13 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
             name: `Device ${deviceNum}`,
             slave_id: deviceNum,
             baud_rate: 9600,
-            com_port: 'COM3',
             enabled: true,
-            show_in_graph: false,
-            register_address: 0,
-            function_code: 3,
-            start_register: 0,
-            register_count: 2
+            show_in_graph: false
         };
+    };
+
+    const handleCommonConfigChange = (field, value) => {
+        setCommonConfig({ ...commonConfig, [field]: value });
     };
 
     const handleChange = (index, field, value) => {
@@ -84,9 +93,13 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
     };
 
     const handleSave = () => {
-        // Pass only the devices that are in the table (no filtering, ALL rows)
-        console.log('Saving devices:', configDevices);
-        onSave(configDevices);
+        // Apply common config to all devices before saving
+        const devicesWithCommonConfig = configDevices.map(device => ({
+            ...device,
+            ...commonConfig
+        }));
+        console.log('Saving devices:', devicesWithCommonConfig);
+        onSave(devicesWithCommonConfig);
         onClose();
     };
 
@@ -116,30 +129,55 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
                 <div className="flex-1 overflow-auto p-4">
                     <div className="mb-4 text-sm text-gray-600">
-                        Add devices one by one (maximum 16 devices). Use the + button to add new rows, - button to delete rows, and toggle to enable/disable devices.
+                        Add devices one by one (maximum 16 devices). Use the + button to add new rows, - button to delete rows, and toggle to enable/disable devices. Toggle to enable, select if graph is needed and add name of the location of pyrometer , enter instrument id from 1- 16 and baud rate depending on Id and baud rate entered in the respective pyrometer.
+                    </div>
+
+                    {/* Common Configuration Section */}
+                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                            <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                            </svg>
+                            Common Configuration (Applied to All Devices)
+                        </h3>
+                        <div className="max-w-xs">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">COM Port</label>
+                                <select
+                                    value={commonConfig.com_port}
+                                    onChange={(e) => handleCommonConfigChange('com_port', e.target.value)}
+                                    className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
+                                >
+                                    {Array.from({ length: 20 }, (_, i) => (
+                                        <option key={i} value={`COM${i + 1}`}>COM{i + 1}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                                Note: Register settings are configured in backend .env file
+                            </p>
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto">
                         <table className="w-full border-collapse border border-gray-300">
                             <thead className="bg-gray-100 sticky top-0">
                                 <tr>
+                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Sr No </th>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Enable</th>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Graph</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Device #</th>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Name</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Slave ID</th>
+                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Instrument ID (1 -16) </th>
                                     <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Baud Rate</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">COM Port</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Register Addr</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Function Code</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Start Reg</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Reg Count</th>
                                     <th className="border border-gray-300 px-2 py-2 text-center text-xs font-semibold">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {configDevices.map((device, index) => (
                                     <tr key={index} className={device.enabled ? "bg-blue-50" : "bg-white"}>
+                                        <td className="border border-gray-300 px-2 py-2 text-center font-semibold text-sm">
+                                            {index + 1}
+                                        </td>
                                         <td className="border border-gray-300 px-2 py-2 text-center">
                                             <button
                                                 onClick={() => handleToggleEnable(index)}
@@ -160,9 +198,6 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                             ) : (
                                                 <span className="text-gray-300 text-xs">—</span>
                                             )}
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2 text-center font-semibold text-sm">
-                                            {index + 1}
                                         </td>
                                         <td className="border border-gray-300 px-2 py-2">
                                             <input
@@ -198,54 +233,6 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                                 <option value="57600">57600</option>
                                                 <option value="115200">115200</option>
                                             </select>
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2">
-                                            <select
-                                                value={device.com_port}
-                                                onChange={(e) => handleChange(index, 'com_port', e.target.value)}
-                                                className="w-24 px-2 py-1 text-sm border rounded bg-white"
-                                            >
-                                                {Array.from({ length: 20 }, (_, i) => (
-                                                    <option key={i} value={`COM${i + 1}`}>COM{i + 1}</option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2">
-                                            <input
-                                                type="number"
-                                                value={device.register_address}
-                                                onChange={(e) => handleChange(index, 'register_address', parseInt(e.target.value) || 0)}
-                                                className="w-24 px-2 py-1 text-sm border rounded bg-white"
-                                                min="0"
-                                            />
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2">
-                                            <select
-                                                value={device.function_code}
-                                                onChange={(e) => handleChange(index, 'function_code', parseInt(e.target.value))}
-                                                className="w-20 px-2 py-1 text-sm border rounded bg-white"
-                                            >
-                                                <option value="3">3</option>
-                                                <option value="4">4</option>
-                                            </select>
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2">
-                                            <input
-                                                type="number"
-                                                value={device.start_register}
-                                                onChange={(e) => handleChange(index, 'start_register', parseInt(e.target.value) || 0)}
-                                                className="w-24 px-2 py-1 text-sm border rounded bg-white"
-                                                min="0"
-                                            />
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2">
-                                            <input
-                                                type="number"
-                                                value={device.register_count}
-                                                onChange={(e) => handleChange(index, 'register_count', parseInt(e.target.value) || 1)}
-                                                className="w-20 px-2 py-1 text-sm border rounded bg-white"
-                                                min="1"
-                                            />
                                         </td>
                                         <td className="border border-gray-300 px-2 py-2 text-center">
                                             {index === configDevices.length - 1 && configDevices.length < 16 ? (

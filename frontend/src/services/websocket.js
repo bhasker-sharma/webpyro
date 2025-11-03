@@ -3,6 +3,22 @@
  * Manages WebSocket connection for real-time temperature updates
  */
 
+// Get WebSocket URL from environment variable or auto-detect from current hostname
+const getWebSocketUrl = () => {
+    // If environment variable is set, use it
+    if (import.meta.env.VITE_API_BASE_URL) {
+        const apiUrl = import.meta.env.VITE_API_BASE_URL;
+        // Replace http with ws and https with wss
+        const wsUrl = apiUrl.replace(/^http/, 'ws');
+        return `${wsUrl}/api/ws`;
+    }
+
+    // Otherwise, auto-detect based on current hostname
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:8000/api/ws`;
+};
+
 class WebSocketService {
     constructor() {
         this.ws = null;
@@ -12,7 +28,7 @@ class WebSocketService {
         this.isIntentionallyClosed = false;
     }
 
-    connect(url = 'ws://localhost:8000/api/ws') {
+    connect(url = getWebSocketUrl()) {
         if (this.ws?.readyState === WebSocket.OPEN) {
             console.log('WebSocket already connected');
             return;

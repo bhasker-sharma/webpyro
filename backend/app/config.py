@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     # Modbus settings (optional, with defaults)
     modbus_timeout: int = 5
     modbus_poll_interval: int = 5
+
+    # Common Modbus register settings (applied to all devices)
+    modbus_register_address: int = 0
+    modbus_function_code: int = 3
+    modbus_start_register: int = 0
+    modbus_register_count: int = 2
     
     class Config:
         # Look for .env file in parent directory (backend folder)

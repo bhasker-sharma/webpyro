@@ -70,10 +70,10 @@ app = FastAPI(
     lifespan=lifespan  # Use lifespan instead of on_event
 )
 
-# Configure CORS
+# Configure CORS - Allow access from any origin on the network
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],  # Allow all origins for network access
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

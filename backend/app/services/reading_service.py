@@ -6,7 +6,7 @@ Handles fetching temperature readings from database
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List, Optional, Dict
-from datetime import timezone, datetime
+from datetime import timezone, datetime, timedelta
 
 from app.models.device import DeviceReading, DeviceSettings
 
@@ -44,11 +44,14 @@ class ReadingService:
             }
             
             if latest_reading:
+                # Convert UTC timestamp to local time (IST = UTC + 5:30)
+                local_timestamp = latest_reading.ts_utc + timedelta(hours=5, minutes=30)
+
                 device_data['latest_reading'] = {
                     'temperature': latest_reading.value,
                     'status': latest_reading.status,
                     'raw_hex': latest_reading.raw_hex,
-                    'timestamp': latest_reading.ts_utc.isoformat(),
+                    'timestamp': local_timestamp.isoformat(),
                     'time_ago': ReadingService._time_ago(latest_reading.ts_utc)
                 }
             
@@ -60,36 +63,42 @@ class ReadingService:
     def get_device_readings(
         db: Session,
         device_id: int,
-        limit: int = 100,
+        limit: Optional[int] = 100,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None
     ) -> List[DeviceReading]:
         """
         Get readings for a specific device
-        
+
         Args:
             db: Database session
             device_id: Device ID
-            limit: Maximum number of readings to return
+            limit: Maximum number of readings to return (None for no limit)
             start_date: Filter readings after this date
             end_date: Filter readings before this date
-            
+
         Returns:
             List of DeviceReading objects
         """
         query = db.query(DeviceReading).filter(
             DeviceReading.device_id == device_id
         )
-        
+
         # Apply date filters
         if start_date:
             query = query.filter(DeviceReading.ts_utc >= start_date)
         if end_date:
             query = query.filter(DeviceReading.ts_utc <= end_date)
-        
-        # Order by timestamp descending and limit
-        readings = query.order_by(desc(DeviceReading.ts_utc)).limit(limit).all()
-        
+
+        # Order by timestamp descending
+        query = query.order_by(desc(DeviceReading.ts_utc))
+
+        # Apply limit only if specified
+        if limit is not None:
+            query = query.limit(limit)
+
+        readings = query.all()
+
         return readings
     
     @staticmethod
@@ -118,12 +127,18 @@ class ReadingService:
                 .order_by(desc(DeviceReading.ts_utc))\
                 .first()
             
+            # Convert UTC timestamp to local time if available
+            latest_timestamp_local = None
+            if latest:
+                local_ts = latest.ts_utc + timedelta(hours=5, minutes=30)
+                latest_timestamp_local = local_ts.isoformat()
+
             device_stats.append({
                 'device_id': device.id,
                 'device_name': device.name,
                 'reading_count': count,
                 'latest_status': latest.status if latest else None,
-                'latest_timestamp': latest.ts_utc.isoformat() if latest else None
+                'latest_timestamp': latest_timestamp_local
             })
         
         # Readings by status

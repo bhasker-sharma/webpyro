@@ -8,6 +8,7 @@ from sqlalchemy import desc
 from typing import List, Optional
 from app.models.device import DeviceSettings, DeviceReading
 from app.schemas.device import DeviceCreate, DeviceUpdate
+from app.config import get_settings
 
 
 class DeviceService:
@@ -61,36 +62,36 @@ class DeviceService:
 
     @staticmethod
     def create_device(db: Session, device: DeviceCreate) -> DeviceSettings:
-        """
-        Create new device
-        
-        Args:
-            db: Database session
-            device: Device data
-            
-        Returns:
-            Created DeviceSettings object
-        """
+        # Get settings from .env
+        settings = get_settings()
+
+        # Convert device to dict and inject common Modbus settings from .env
+        device_dict = device.model_dump()
+        device_dict['register_address'] = settings.modbus_register_address
+        device_dict['function_code'] = settings.modbus_function_code
+        device_dict['start_register'] = settings.modbus_start_register
+        device_dict['register_count'] = settings.modbus_register_count
+
         # Create device object
-        db_device = DeviceSettings(**device.model_dump())
-        
+        db_device = DeviceSettings(**device_dict)
+
         # Add to database
         db.add(db_device)
         db.commit()
         db.refresh(db_device)
-        
+
         return db_device
 
     @staticmethod
     def update_device(db: Session, device_id: int, device_update: DeviceUpdate) -> Optional[DeviceSettings]:
         """
         Update device
-        
+
         Args:
             db: Database session
             device_id: Device ID
             device_update: Updated device data
-            
+
         Returns:
             Updated DeviceSettings object or None
         """
@@ -98,16 +99,26 @@ class DeviceService:
         db_device = DeviceService.get_device_by_id(db, device_id)
         if not db_device:
             return None
-        
+
+        # Get settings from .env
+        settings = get_settings()
+
         # Update fields that are provided
         update_data = device_update.model_dump(exclude_unset=True)
+
+        # Always override with common Modbus settings from .env (these are hardcoded)
+        update_data['register_address'] = settings.modbus_register_address
+        update_data['function_code'] = settings.modbus_function_code
+        update_data['start_register'] = settings.modbus_start_register
+        update_data['register_count'] = settings.modbus_register_count
+
         for field, value in update_data.items():
             setattr(db_device, field, value)
-        
+
         # Commit changes
         db.commit()
         db.refresh(db_device)
-        
+
         return db_device
 
     @staticmethod
