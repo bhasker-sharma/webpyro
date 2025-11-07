@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ConfigModal from '../components/ConfigModal';
 import GraphSection from '../components/GraphSection';
-import { deviceAPI, readingAPI, pollingAPI } from '../services/api';
+import { deviceAPI, readingAPI, pollingAPI, configAPI } from '../services/api';
 import { websocketService } from '../services/websocket';
 
 function DashboardPage({ configModalOpen, setConfigModalOpen }) {
@@ -163,16 +163,14 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
         setError(null);
 
         try {
-            // Step 1: Delete ALL existing devices from database
-            const existingDevices = await deviceAPI.getAll(false);
-            console.log('Deleting all existing devices:', existingDevices.length);
-
-            for (const device of existingDevices) {
-                await deviceAPI.delete(device.id);
-                console.log(`Deleted device: ${device.name}`);
-            }
+            // Step 1: Clear ALL existing device settings from database
+            // This ensures a clean state and forces reload from .env
+            console.log('Clearing all device settings from database...');
+            await configAPI.clearSettings();
+            console.log('All device settings cleared successfully');
 
             // Step 2: Insert ONLY the devices from the table (with their enabled state)
+            // The backend will automatically load register settings from .env
             console.log('Creating new devices from table:', configuredDevices);
 
             for (const device of configuredDevices) {

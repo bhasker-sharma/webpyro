@@ -20,7 +20,10 @@ class Settings(BaseSettings):
     modbus_function_code: int = 3
     modbus_start_register: int = 0
     modbus_register_count: int = 2
-    
+
+    # Configuration Access PIN
+    config_pin: str = "1234"
+
     class Config:
         # Look for .env file in parent directory (backend folder)
         env_file = os.path.join(os.path.dirname(__file__), "..", ".env")

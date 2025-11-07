@@ -86,30 +86,6 @@ class ModbusService:
                 self.current_baudrate = None
     
     def read_temperature(self, device_config: Dict) -> Dict:
-        """
-        Read temperature from a Modbus device
-        
-        Args:
-            device_config: Dictionary with device settings:
-                - name: Device name
-                - slave_id: Modbus slave ID (1-247)
-                - baud_rate: Baud rate
-                - com_port: COM port
-                - register_address: Starting register
-                - function_code: 3 (Holding) or 4 (Input)
-                - start_register: Register to read from
-                - register_count: Number of registers (1 or 2)
-        
-        Returns:
-            Dictionary with:
-                - device_id: Device database ID
-                - device_name: Device name
-                - temperature: Temperature value (float)
-                - status: 'OK', 'Stale', or 'Err'
-                - raw_hex: Raw response in hex
-                - timestamp: Reading timestamp
-                - error_message: Error details (if status='Err')
-        """
         
         device_name = device_config.get('name', 'Unknown')
         device_id = device_config.get('id', 0)
@@ -182,7 +158,7 @@ class ModbusService:
                 # 16-bit integer (single register)
                 # Assume temperature is in 0.1°C units (e.g., 235 = 23.5°C)
                 temp_raw = registers[0]
-                temperature = temp_raw / 10.0
+                temperature = temp_raw 
                 
             elif register_count == 2:
                 # 32-bit float (two registers)

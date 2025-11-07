@@ -11,14 +11,81 @@ from app.models.device import DeviceSettings, DeviceReading
 from datetime import datetime, timedelta
 from app.services.reading_service import ReadingService
 from fastapi.responses import StreamingResponse
+from app.config import get_settings
+from pydantic import BaseModel
 import io
 import csv
+import serial.tools.list_ports
 
 
 router = APIRouter(
     prefix="/api",
     tags=["api"]  # Groups endpoints in documentation
 )
+
+# ============================================================================
+# CONFIGURATION ENDPOINTS
+# ============================================================================
+
+class PinVerification(BaseModel):
+    pin: str
+
+@router.get("/config/com-ports")
+async def get_available_com_ports():
+    """
+    Get list of available COM ports on the system
+    """
+    try:
+        ports = serial.tools.list_ports.comports()
+        available_ports = [
+            {
+                "port": port.device,
+                "description": port.description,
+                "hwid": port.hwid
+            }
+            for port in ports
+        ]
+        return {
+            "ports": available_ports,
+            "count": len(available_ports)
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get COM ports: {str(e)}"
+        )
+
+@router.post("/config/verify-pin")
+async def verify_config_pin(pin_data: PinVerification):
+    """
+    Verify the configuration access PIN
+    """
+    settings = get_settings()
+    if pin_data.pin == settings.config_pin:
+        return {"valid": True, "message": "PIN verified successfully"}
+    else:
+        return {"valid": False, "message": "Invalid PIN"}
+
+@router.post("/config/clear-settings")
+async def clear_device_settings(db: Session = Depends(get_db)):
+    """
+    Clear all device settings from database
+    This is called when saving new configuration to ensure clean state
+    """
+    try:
+        # Delete all device settings (cascade will delete readings too)
+        db.query(DeviceSettings).delete()
+        db.commit()
+        return {
+            "status": "success",
+            "message": "All device settings cleared successfully"
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clear device settings: {str(e)}"
+        )
 
 # ============================================================================
 # SYSTEM ENDPOINTS

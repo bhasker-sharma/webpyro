@@ -113,4 +113,34 @@ export const pollingAPI = {
     },
 };
 
+// ============================================================================
+// CONFIG API FUNCTIONS
+// ============================================================================
+
+export const configAPI = {
+    /**
+     * Get available COM ports on the system
+     */
+    getComPorts: async () => {
+        const response = await api.get('/config/com-ports');
+        return response.data;
+    },
+
+    /**
+     * Verify configuration access PIN
+     */
+    verifyPin: async (pin) => {
+        const response = await api.post('/config/verify-pin', { pin });
+        return response.data;
+    },
+
+    /**
+     * Clear all device settings from database
+     */
+    clearSettings: async () => {
+        const response = await api.post('/config/clear-settings');
+        return response.data;
+    },
+};
+
 export default api;
