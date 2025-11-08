@@ -8,9 +8,11 @@ import struct
 import logging
 from datetime import datetime
 from typing import Dict, Optional
+from app.config import get_settings
 
 # Setup logging
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
 class ModbusService:
@@ -24,7 +26,7 @@ class ModbusService:
         self.current_port = None
         self.current_baudrate = None
     
-    def connect(self, port: str, baudrate: int, timeout: int = 5) -> bool:
+    def connect(self, port: str, baudrate: int, timeout: int = None) -> bool:
         """
         Connect to serial port
         
@@ -43,7 +45,11 @@ class ModbusService:
             
             # Create client if needed
             if not self.client:
-                logger.debug(f"Connecting to {port} at {baudrate} baud...")
+                # Use timeout from settings if not specified
+                if timeout is None:
+                    timeout = settings.modbus_timeout
+
+                logger.debug(f"Connecting to {port} at {baudrate} baud (timeout: {timeout}s)...")
 
                 self.client = ModbusSerialClient(
                     port=port,

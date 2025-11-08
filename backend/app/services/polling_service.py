@@ -14,8 +14,10 @@ from app.models.device import DeviceSettings
 from app.services.modbus_service import modbus_service
 from app.services.buffer_service import reading_buffer
 from app.services.websocket_service import websocket_manager
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
 class PollingService:
@@ -113,12 +115,13 @@ class PollingService:
                     continue
                 
                 logger.debug(f"Cycle #{self.cycle_count}: Reading {len(devices)} devices...")
-                
-                # Read each device
-                for device in devices:
+
+                # Read all devices in parallel for faster data collection
+                async def read_single_device(device):
+                    """Read a single device and broadcast/store the result"""
                     if not self.is_running:
-                        break
-                    
+                        return
+
                     # Prepare device config for Modbus service
                     device_config = {
                         'id': device.id,
@@ -130,13 +133,13 @@ class PollingService:
                         'start_register': device.start_register,
                         'register_count': device.register_count
                     }
-                    
-                    # Read temperature from device
+
+                    # Read temperature from device (in thread to avoid blocking)
                     result = await asyncio.to_thread(
                         modbus_service.read_temperature,
                         device_config
                     )
-                    
+
                     # Prepare reading data
                     reading_data = {
                         'device_id': result['device_id'],
@@ -146,7 +149,7 @@ class PollingService:
                         'raw_hex': result['raw_hex'],
                         'timestamp': datetime.fromisoformat(result['timestamp'])
                     }
-                    
+
                     # Add to buffer (will be saved to DB when buffer is full)
                     reading_buffer.add_reading(reading_data)
 
@@ -160,7 +163,7 @@ class PollingService:
                             'status': result['status'],
                             'raw_hex': result['raw_hex'],
                             'timestamp': result['timestamp'],
-                            'error_message': result.get('error_message', '')  # Include error message
+                            'error_message': result.get('error_message', '')
                         }
                     })
 
@@ -169,16 +172,29 @@ class PollingService:
                         logger.debug(f"Device {device.name}: {result['temperature']}C")
                     else:
                         logger.warning(f"Device {device.name}: {result['error_message']}")
+
+                # Read all devices concurrently using asyncio.gather
+                # This significantly reduces cycle time and captures more data points
+                await asyncio.gather(
+                    *[read_single_device(device) for device in devices],
+                    return_exceptions=True  # Continue even if one device fails
+                )
                 
                 # Calculate cycle time
                 cycle_end = datetime.now()
                 cycle_duration = (cycle_end - cycle_start).total_seconds()
 
                 logger.debug(f"Cycle #{self.cycle_count} complete in {cycle_duration:.2f}s")
-                
-                # Optional: Small delay between cycles (give devices a rest)
-                # Comment out this line if you want continuous reading
-                await asyncio.sleep(0.1)
+
+                # Configurable delay between polling cycles (from .env: MODBUS_POLL_INTERVAL)
+                # Reduce this for faster data capture (e.g., 1 second for high-frequency devices)
+                poll_interval = settings.modbus_poll_interval
+
+                # If cycle took longer than interval, don't wait (already behind schedule)
+                if cycle_duration < poll_interval:
+                    await asyncio.sleep(poll_interval - cycle_duration)
+                else:
+                    await asyncio.sleep(0.1)  # Minimal delay to prevent CPU overload
                 
             except asyncio.CancelledError:
                 logger.debug("Polling loop cancelled")

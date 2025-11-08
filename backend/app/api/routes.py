@@ -16,6 +16,9 @@ from pydantic import BaseModel
 import io
 import csv
 import serial.tools.list_ports
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(
@@ -34,17 +37,57 @@ class PinVerification(BaseModel):
 async def get_available_com_ports():
     """
     Get list of available COM ports on the system
+    Includes physical, USB, and virtual COM ports (like com0com)
     """
     try:
+        # Get all ports detected by pyserial
         ports = serial.tools.list_ports.comports()
-        available_ports = [
-            {
+        available_ports = []
+
+        for port in ports:
+            available_ports.append({
                 "port": port.device,
-                "description": port.description,
-                "hwid": port.hwid
-            }
-            for port in ports
-        ]
+                "description": port.description or "Unknown Device",
+                "hwid": port.hwid or "N/A"
+            })
+
+        # Also check for virtual COM ports that might not be auto-detected
+        # com0com and other virtual COM emulators often use CNCA0, CNCB0, COM10-COM20 range
+        import platform
+        if platform.system() == "Windows":
+            # Try to detect common virtual COM port names
+            import winreg
+            try:
+                # Check Windows registry for additional COM ports
+                key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DEVICEMAP\SERIALCOMM")
+                detected_ports = set(p["port"] for p in available_ports)
+
+                i = 0
+                while True:
+                    try:
+                        name, value, _ = winreg.EnumValue(key, i)
+                        if value not in detected_ports:
+                            # Found a COM port not in the list
+                            available_ports.append({
+                                "port": value,
+                                "description": f"Virtual/Registry Port ({name})",
+                                "hwid": "Registry"
+                            })
+                        i += 1
+                    except OSError:
+                        break
+                winreg.CloseKey(key)
+            except FileNotFoundError:
+                pass  # Registry key not found, skip
+            except Exception as reg_error:
+                logger.warning(f"Registry COM port detection failed: {reg_error}")
+
+        # Sort by port name (COM1, COM2, etc.)
+        available_ports.sort(key=lambda x: (
+            int(''.join(filter(str.isdigit, x["port"]))) if any(c.isdigit() for c in x["port"]) else 999,
+            x["port"]
+        ))
+
         return {
             "ports": available_ports,
             "count": len(available_ports)

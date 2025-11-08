@@ -8,8 +8,20 @@ function GraphSection({ devices, devicesWithReadings }) {
     const [currentTime, setCurrentTime] = useState(Date.now()); // Track current time for sliding window
     const dataBufferRef = useRef(new Map());
 
+    // MEMORY OPTIMIZATION: Fixed buffer size per device (never exceed this)
+    const MAX_POINTS_PER_DEVICE = 300; // Enough for smooth graph, prevents memory overflow
+
     // Filter devices that should be shown in graph (show_in_graph = true)
     const graphDevices = devices.filter(d => d.show_in_graph);
+
+    // Calculate minimum interval between points based on time range
+    // This ensures we only store what's needed for smooth rendering
+    const getMinSampleInterval = (timeRangeMinutes) => {
+        // Distribute MAX_POINTS across the time range
+        // Example: 60 min range → store point every 12 seconds
+        const totalSeconds = timeRangeMinutes * 60;
+        return (totalSeconds / MAX_POINTS_PER_DEVICE) * 1000; // Convert to milliseconds
+    };
 
     // Update current time every second to create sliding window effect
     useEffect(() => {
@@ -24,6 +36,10 @@ function GraphSection({ devices, devicesWithReadings }) {
     useEffect(() => {
         if (devicesWithReadings.length === 0) return;
 
+        const now = Date.now();
+        const cutoffTime = now - (timeRange * 60 * 1000);
+        const minInterval = getMinSampleInterval(timeRange);
+
         devicesWithReadings.forEach(deviceReading => {
             const device = devices.find(d => d.id === deviceReading.device_id);
 
@@ -37,6 +53,9 @@ function GraphSection({ devices, devicesWithReadings }) {
             const timestampStr = reading.timestamp.endsWith('Z') ? reading.timestamp : reading.timestamp + 'Z';
             const timestamp = new Date(timestampStr).getTime();
 
+            // IMMEDIATE CLEANUP: Skip data that's already outside time window
+            if (timestamp < cutoffTime) return;
+
             // Get or create buffer for this device
             if (!dataBufferRef.current.has(device.id)) {
                 dataBufferRef.current.set(device.id, []);
@@ -44,9 +63,27 @@ function GraphSection({ devices, devicesWithReadings }) {
 
             const buffer = dataBufferRef.current.get(device.id);
 
-            // Add new data point if it doesn't exist already (check within 1 second)
-            const exists = buffer.some(point => Math.abs(point.timestamp - timestamp) < 1000);
-            if (!exists && reading.temperature !== null && reading.temperature !== undefined) {
+            // ADAPTIVE SAMPLING: Only add if enough time has passed since last point
+            // This prevents buffer from growing too large
+            let shouldAdd = false;
+
+            if (buffer.length === 0) {
+                shouldAdd = true; // First point always added
+            } else {
+                const lastPoint = buffer[buffer.length - 1];
+                const timeSinceLastPoint = timestamp - lastPoint.timestamp;
+
+                // For recent data (last 10%), store every point for real-time smoothness
+                const recentThreshold = now - (timeRange * 60 * 1000 * 0.1);
+                if (timestamp > recentThreshold) {
+                    shouldAdd = timeSinceLastPoint >= 1000; // Store every second for recent data
+                } else {
+                    // For older data, use adaptive sampling
+                    shouldAdd = timeSinceLastPoint >= minInterval;
+                }
+            }
+
+            if (shouldAdd && reading.temperature !== null && reading.temperature !== undefined) {
                 buffer.push({
                     timestamp: timestamp,
                     temperature: reading.temperature,
@@ -54,14 +91,14 @@ function GraphSection({ devices, devicesWithReadings }) {
                     deviceName: device.name
                 });
 
-                // Sort by timestamp
-                buffer.sort((a, b) => a.timestamp - b.timestamp);
+                // IMMEDIATE OLD DATA REMOVAL: Remove points outside time window
+                let validPoints = buffer.filter(point => point.timestamp >= cutoffTime);
 
-                // Clean up old data outside the time window
-                const now = Date.now();
-                const cutoffTime = now - (timeRange * 60 * 1000); // Exact cutoff
+                // ENFORCE MAX BUFFER SIZE: Keep only most recent MAX_POINTS_PER_DEVICE
+                if (validPoints.length > MAX_POINTS_PER_DEVICE) {
+                    validPoints = validPoints.slice(-MAX_POINTS_PER_DEVICE);
+                }
 
-                const validPoints = buffer.filter(point => point.timestamp >= cutoffTime);
                 dataBufferRef.current.set(device.id, validPoints);
             }
         });
@@ -70,14 +107,14 @@ function GraphSection({ devices, devicesWithReadings }) {
         buildGraphData();
     }, [devicesWithReadings, devices, timeRange]);
 
-    // Get downsampling interval based on time range
+    // Get downsampling interval for chart rendering based on time range
     const getDownsampleInterval = () => {
         if (timeRange <= 1) return 1;        // 1 min: every point
-        if (timeRange <= 5) return 2;        // 5 min: every 2 seconds
-        if (timeRange <= 10) return 5;       // 10 min: every 5 seconds
-        if (timeRange <= 30) return 15;      // 30 min: every 15 seconds
-        if (timeRange <= 60) return 30;      // 1 hour: every 30 seconds
-        return 90;                            // 3 hours: every 90 seconds (1.5 min)
+        if (timeRange <= 5) return 1;        // 5 min: every point (adaptive sampling already limits this)
+        if (timeRange <= 10) return 1;       // 10 min: every point
+        if (timeRange <= 30) return 2;       // 30 min: every 2nd point
+        if (timeRange <= 60) return 2;       // 1 hour: every 2nd point
+        return 1;                             // Default: every point
     };
 
     // Build the graph data from all device buffers with downsampling
@@ -126,24 +163,21 @@ function GraphSection({ devices, devicesWithReadings }) {
         setGraphData(chartData);
     }, [timeRange]);
 
-    // Clean up old data periodically
+    // Lightweight periodic cleanup (most cleanup happens immediately on data insert)
     useEffect(() => {
         const interval = setInterval(() => {
             const now = Date.now();
-            const cutoffTime = now - (timeRange * 60 * 1000); // Exact cutoff
-
-            // Maximum buffer size per device to prevent memory issues
-            const maxBufferSize = Math.max(200, timeRange * 20); // At least 200, or 20 per minute
+            const cutoffTime = now - (timeRange * 60 * 1000);
 
             let hasChanges = false;
 
             dataBufferRef.current.forEach((buffer, deviceId) => {
+                // Remove any stale points that slipped through
                 let validPoints = buffer.filter(point => point.timestamp >= cutoffTime);
 
-                // Also limit buffer size for very long time ranges
-                if (validPoints.length > maxBufferSize) {
-                    // Keep the most recent points
-                    validPoints = validPoints.slice(-maxBufferSize);
+                // ENFORCE MAX BUFFER SIZE (safety check)
+                if (validPoints.length > MAX_POINTS_PER_DEVICE) {
+                    validPoints = validPoints.slice(-MAX_POINTS_PER_DEVICE);
                 }
 
                 if (validPoints.length !== buffer.length) {
@@ -156,7 +190,7 @@ function GraphSection({ devices, devicesWithReadings }) {
             if (hasChanges) {
                 buildGraphData();
             }
-        }, 2000); // Clean every 2 seconds for smoother sliding
+        }, 5000); // Clean every 5 seconds (less frequent since immediate cleanup handles most)
 
         return () => clearInterval(interval);
     }, [timeRange, buildGraphData]);
@@ -178,10 +212,8 @@ function GraphSection({ devices, devicesWithReadings }) {
             tickInterval = 2 * 60 * 1000; // 2 minutes for 10 min range
         } else if (timeRange <= 30) {
             tickInterval = 5 * 60 * 1000; // 5 minutes for 30 min range
-        } else if (timeRange <= 60) {
-            tickInterval = 10 * 60 * 1000; // 10 minutes for 1 hour range
         } else {
-            tickInterval = 30 * 60 * 1000; // 30 minutes for 3 hour range
+            tickInterval = 10 * 60 * 1000; // 10 minutes for 1 hour range (max)
         }
 
         // Generate ticks from start to NOW (current time)
@@ -326,7 +358,6 @@ function GraphSection({ devices, devicesWithReadings }) {
                             <option value={10}>Last 10 minutes</option>
                             <option value={30}>Last 30 minutes</option>
                             <option value={60}>Last 1 hour</option>
-                            <option value={180}>Last 3 hours</option>
                         </select>
                         <div className="text-[10px] text-gray-500 mt-1 text-center">
                             {timeRangeDisplay.start} - {timeRangeDisplay.end}
