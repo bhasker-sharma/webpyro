@@ -82,6 +82,7 @@ class ReadingResponse(BaseModel):
     device_name: str
     ts_utc: datetime
     value: float
+    ambient_temp: Optional[float] = None
     status: str
     raw_hex: Optional[str] = None
     created_at: datetime

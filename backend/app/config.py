@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     modbus_start_register: int = 0
     modbus_register_count: int = 2
 
+    # Ambient temperature register settings
+    ambient_temp_start_register: int = 2
+
     # Configuration Access PIN
     config_pin: str = "1234"
 

@@ -354,7 +354,10 @@ function PreviewPage() {
                                                     Timestamp
                                                 </th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Value
+                                                    Temperature
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Ambient Temp
                                                 </th>
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                     Status
@@ -372,6 +375,11 @@ function PreviewPage() {
                                                     </td>
                                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                                                         {reading.value}°C
+                                                    </td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                                        {reading.ambient_temp !== null && reading.ambient_temp !== undefined
+                                                            ? `${reading.ambient_temp}°C`
+                                                            : '--'}
                                                     </td>
                                                     <td className="px-4 py-3 whitespace-nowrap">
                                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${

@@ -48,6 +48,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                         ...updated[index],
                         latest_reading: {
                             temperature: data.temperature,
+                            ambient_temp: data.ambient_temp,
                             status: data.status,
                             timestamp: data.timestamp,
                             raw_hex: data.raw_hex,
@@ -61,6 +62,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                         device_name: data.device_name,
                         latest_reading: {
                             temperature: data.temperature,
+                            ambient_temp: data.ambient_temp,
                             status: data.status,
                             timestamp: data.timestamp,
                             raw_hex: data.raw_hex,
@@ -362,6 +364,7 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
     };
 
     const temperature = reading?.temperature;
+    const ambientTemp = reading?.ambient_temp;
     const status = reading?.status || 'N/A';
     const timestamp = reading?.timestamp;
     const timeAgo = timestamp ? formatTimeAgo(timestamp) : 'Never';
@@ -385,6 +388,12 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
                         <div className="text-xl lg:text-2xl font-bold text-red-600">
                             {temperature !== null && temperature !== undefined ? `${temperature.toFixed(1)}°C` : '--°C'}
                         </div>
+                        {/* Ambient Temperature - Enhanced visibility */}
+                        {ambientTemp !== null && ambientTemp !== undefined && (
+                            <div className="mt-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs font-semibold text-blue-700">
+                                🌡️ Ambient: {ambientTemp.toFixed(1)}°C
+                            </div>
+                        )}
                         {/* Error Message */}
                         {errorMessage && (
                             <div className="text-[10px] text-red-700 font-medium mt-1 px-2 text-center line-clamp-2">
@@ -393,9 +402,17 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
                         )}
                     </>
                 ) : (
-                    <div className={`text-xl lg:text-2xl font-bold ${status === 'OK' ? 'text-green-600' : 'text-gray-600'}`}>
-                        {temperature !== null && temperature !== undefined ? `${temperature.toFixed(1)}°C` : '--°C'}
-                    </div>
+                    <>
+                        <div className={`text-xl lg:text-2xl font-bold ${status === 'OK' ? 'text-green-600' : 'text-gray-600'}`}>
+                            {temperature !== null && temperature !== undefined ? `${temperature.toFixed(1)}°C` : '--°C'}
+                        </div>
+                        {/* Ambient Temperature - Enhanced visibility */}
+                        {ambientTemp !== null && ambientTemp !== undefined && (
+                            <div className="mt-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs font-semibold text-blue-700">
+                                🌡️ Ambient: {ambientTemp.toFixed(1)}°C
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
