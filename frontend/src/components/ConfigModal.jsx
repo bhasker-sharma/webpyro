@@ -11,7 +11,9 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
     // Common configuration fields for all devices
     const [commonConfig, setCommonConfig] = useState({
-        com_port: 'COM3'
+        com_port: 'COM3',
+        graph_y_min: 600,
+        graph_y_max: 2000
     });
 
     useEffect(() => {
@@ -82,7 +84,9 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                 // Extract common config from the first device
                 if (devices[0]) {
                     setCommonConfig({
-                        com_port: devices[0].com_port || (availableComPorts[0]?.port || 'COM3')
+                        com_port: devices[0].com_port || (availableComPorts[0]?.port || 'COM3'),
+                        graph_y_min: devices[0].graph_y_min !== null && devices[0].graph_y_min !== undefined ? devices[0].graph_y_min : 600,
+                        graph_y_max: devices[0].graph_y_max !== null && devices[0].graph_y_max !== undefined ? devices[0].graph_y_max : 2000
                     });
                 }
                 setConfigDevices(devices);
@@ -159,7 +163,10 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
             ...device,
             ...commonConfig
         }));
-        console.log('Saving devices:', devicesWithCommonConfig);
+        console.log('=== ConfigModal: Saving Configuration ===');
+        console.log('Common Config:', commonConfig);
+        console.log('Devices with Common Config applied:', devicesWithCommonConfig);
+        console.log('Each device COM port:', devicesWithCommonConfig.map(d => ({ name: d.name, com_port: d.com_port })));
         onSave(devicesWithCommonConfig);
         onClose();
     };
@@ -271,7 +278,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                             </svg>
                             Common Configuration (Applied to All Devices)
                         </h3>
-                        <div className="max-w-xs">
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-1">COM Port</label>
                                 <select
@@ -295,10 +302,36 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                     </p>
                                 )}
                             </div>
-                            <p className="text-xs text-gray-500 mt-2">
-                                Note: Register settings are configured in backend .env file
-                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Graph Y-Min (°C)</label>
+                                    <input
+                                        type="number"
+                                        value={commonConfig.graph_y_min}
+                                        onChange={(e) => handleCommonConfigChange('graph_y_min', parseFloat(e.target.value) || 600)}
+                                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
+                                        min="0"
+                                        step="50"
+                                        placeholder="600"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Graph Y-Max (°C)</label>
+                                    <input
+                                        type="number"
+                                        value={commonConfig.graph_y_max}
+                                        onChange={(e) => handleCommonConfigChange('graph_y_max', parseFloat(e.target.value) || 2000)}
+                                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
+                                        min="0"
+                                        step="50"
+                                        placeholder="2000"
+                                    />
+                                </div>
+                            </div>
                         </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                            Note: Register settings are configured in backend .env file
+                        </p>
                     </div>
 
                     <div className="overflow-x-auto">

@@ -252,6 +252,26 @@ function GraphSection({ devices, devicesWithReadings }) {
 
     const timeRangeDisplay = getCurrentTimeRange();
 
+    // Calculate Y-axis domain from device configurations
+    // All devices share the same Y-axis settings (configured in Common Configuration)
+    const getYAxisDomain = () => {
+        if (graphDevices.length === 0) {
+            return ['auto', 'auto']; // Fallback to auto if no devices
+        }
+
+        // Get Y-axis settings from first device (all devices have the same values)
+        const firstDevice = graphDevices[0];
+        const yMin = firstDevice.graph_y_min;
+        const yMax = firstDevice.graph_y_max;
+
+        // If not configured, use auto-scale
+        if (yMin === null || yMin === undefined || yMax === null || yMax === undefined) {
+            return ['auto', 'auto'];
+        }
+
+        return [yMin, yMax];
+    };
+
     return (
         <div className="flex gap-2 h-full">
             {/* Graph Area - Maximum Width & Height */}
@@ -300,7 +320,7 @@ function GraphSection({ devices, devicesWithReadings }) {
                                     stroke="#6b7280"
                                     style={{ fontSize: '11px' }}
                                     label={{ value: 'Temperature (°C)', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#6b7280' } }}
-                                    domain={['auto', 'auto']}
+                                    domain={getYAxisDomain()}
                                 />
                                 <Tooltip
                                     labelFormatter={formatTime}
