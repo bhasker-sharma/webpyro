@@ -111,6 +111,7 @@ class PingPongBuffer:
                     device_name=reading['device_name'],
                     ts_utc=reading['timestamp'],
                     value=reading['temperature'] if reading['temperature'] is not None else 0.0,
+                    ambient_temp=reading.get('ambient_temp'),  # Add ambient temperature
                     status=reading['status'],
                     raw_hex=reading['raw_hex']
                 )

@@ -263,6 +263,7 @@ async def get_readings_for_device(
             'device_id':reading.device_id,
             'device_name':reading.device_name,
             'temperature': reading.value,
+            'ambient_temp': reading.ambient_temp,  # Include ambient temperature
             'status': reading.status,
             'raw_hex': reading.raw_hex,
             'timestamp': local_timestamp.isoformat()
@@ -335,6 +336,7 @@ async def get_filtered_readings(
             'device_id': reading.device_id,
             'device_name': reading.device_name,
             'value': reading.value,
+            'ambient_temp': reading.ambient_temp,  # Include ambient temperature
             'status': reading.status,
             'raw_hex': reading.raw_hex,
             'timestamp': local_timestamp.isoformat(),
@@ -422,7 +424,7 @@ async def export_readings_csv(
     writer.writerow([])
 
     # Row 5: Column headers
-    writer.writerow(['Serial Number', 'Database ID', 'Date', 'Time', 'Value', 'Status'])
+    writer.writerow(['Serial Number', 'Database ID', 'Date', 'Time', 'Temperature', 'Ambient Temp', 'Status'])
 
     # Write data rows
     for idx, reading in enumerate(readings, start=1):
@@ -437,6 +439,7 @@ async def export_readings_csv(
             date_str,  # Date in YYYY-MM-DD format
             time_str,  # Time in HH:MM:SS format
             reading.value,  # Temperature value
+            reading.ambient_temp if reading.ambient_temp is not None else '',  # Ambient temperature
             reading.status  # Status
         ])
 

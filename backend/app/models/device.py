@@ -49,6 +49,7 @@ class DeviceReading(Base):
     device_name = Column(String(100), nullable=False)
     ts_utc = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
     value = Column(Float, nullable=False)
+    ambient_temp = Column(Float, nullable=True)  # Ambient temperature from separate register
     status = Column(String(10), nullable=False, index=True)  # OK, Stale, Err
     raw_hex = Column(String(100))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -72,6 +73,7 @@ class ReadingArchive(Base):
     device_name = Column(String(100), nullable=False)
     ts_utc = Column(DateTime(timezone=True), nullable=False, index=True)
     value = Column(Float, nullable=False)
+    ambient_temp = Column(Float, nullable=True)  # Ambient temperature from separate register
     status = Column(String(10), nullable=False)
     raw_hex = Column(String(100))
     archived_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)

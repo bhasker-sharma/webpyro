@@ -92,15 +92,16 @@ class ModbusService:
                 self.current_baudrate = None
     
     def read_temperature(self, device_config: Dict) -> Dict:
-        
+
         device_name = device_config.get('name', 'Unknown')
         device_id = device_config.get('id', 0)
         slave_id = device_config.get('slave_id', 1)
-        
+
         result = {
             'device_id': device_id,
             'device_name': device_name,
             'temperature': None,
+            'ambient_temp': None,
             'status': 'Err',
             'raw_hex': '',
             'timestamp': datetime.utcnow().isoformat(),
@@ -187,7 +188,52 @@ class ModbusService:
                 result['status'] = 'Err'
                 result['error_message'] = f"Temperature out of range: {temperature}"
                 logger.warning(f"⚠️  {device_name}: {result['error_message']}")
-            
+
+            # Read ambient temperature from separate register
+            try:
+                ambient_start_register = settings.ambient_temp_start_register
+                logger.debug(f"📡 Reading ambient temperature for {device_name}...")
+                logger.debug(f"   Function: {function_code}, Ambient Register: {ambient_start_register}, Count: {register_count}")
+
+                # Read ambient temperature registers based on function code
+                if function_code == 3:
+                    ambient_response = self.client.read_holding_registers(
+                        address=ambient_start_register,
+                        count=register_count,
+                        device_id=slave_id
+                    )
+                elif function_code == 4:
+                    ambient_response = self.client.read_input_registers(
+                        address=ambient_start_register,
+                        count=register_count,
+                        device_id=slave_id
+                    )
+
+                # Check for errors in ambient response
+                if not ambient_response.isError():
+                    ambient_registers = ambient_response.registers
+                    logger.debug(f"   Ambient raw registers: {ambient_registers}")
+
+                    # Decode ambient temperature based on register count
+                    if register_count == 1:
+                        ambient_temp_raw = ambient_registers[0]
+                        ambient_temperature = ambient_temp_raw
+                    elif register_count == 2:
+                        ambient_byte_data = struct.pack('>HH', ambient_registers[0], ambient_registers[1])
+                        ambient_temperature = struct.unpack('>f', ambient_byte_data)[0]
+
+                    # Validate ambient temperature
+                    if -50 <= ambient_temperature <= 1500:
+                        result['ambient_temp'] = round(ambient_temperature, 2)
+                        logger.debug(f"✅ {device_name}: Ambient {ambient_temperature:.2f}°C")
+                    else:
+                        logger.warning(f"⚠️  {device_name}: Ambient temp out of range: {ambient_temperature}")
+                else:
+                    logger.warning(f"⚠️  {device_name}: Failed to read ambient temperature: {ambient_response}")
+            except Exception as ambient_error:
+                logger.warning(f"⚠️  {device_name}: Error reading ambient temperature: {ambient_error}")
+                # Don't fail the entire reading if ambient temp fails
+
             return result
             
         except ModbusException as e:

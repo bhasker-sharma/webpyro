@@ -145,6 +145,7 @@ class PollingService:
                         'device_id': result['device_id'],
                         'device_name': result['device_name'],
                         'temperature': result['temperature'],
+                        'ambient_temp': result.get('ambient_temp'),
                         'status': result['status'],
                         'raw_hex': result['raw_hex'],
                         'timestamp': datetime.fromisoformat(result['timestamp'])
@@ -160,6 +161,7 @@ class PollingService:
                             'device_id': result['device_id'],
                             'device_name': result['device_name'],
                             'temperature': result['temperature'],
+                            'ambient_temp': result.get('ambient_temp'),
                             'status': result['status'],
                             'raw_hex': result['raw_hex'],
                             'timestamp': result['timestamp'],
