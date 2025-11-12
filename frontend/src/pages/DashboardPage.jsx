@@ -187,10 +187,12 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                     function_code: device.function_code,
                     start_register: device.start_register,
                     register_count: device.register_count,
+                    graph_y_min: device.graph_y_min !== null && device.graph_y_min !== undefined ? device.graph_y_min : 600,
+                    graph_y_max: device.graph_y_max !== null && device.graph_y_max !== undefined ? device.graph_y_max : 2000,
                 };
 
                 await deviceAPI.create(devicePayload);
-                console.log(`Created device: ${device.name} (enabled: ${device.enabled}, show_in_graph: ${device.show_in_graph})`);
+                console.log(`Created device: ${device.name} (enabled: ${device.enabled}, show_in_graph: ${device.show_in_graph}, COM: ${device.com_port})`);
             }
 
             // Step 3: Restart polling service to reload new device configs

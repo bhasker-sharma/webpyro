@@ -25,6 +25,8 @@ class DeviceBase(BaseModel):
     function_code: Optional[int] = Field(None, ge=1, le=4, description="Modbus function code (populated from .env)")
     start_register: Optional[int] = Field(None, ge=0, description="Starting register (populated from .env)")
     register_count: Optional[int] = Field(None, ge=1, description="Number of registers to read (populated from .env)")
+    graph_y_min: Optional[float] = Field(600.0, description="Minimum Y-axis value for graph display")
+    graph_y_max: Optional[float] = Field(2000.0, description="Maximum Y-axis value for graph display")
 
     @validator('baud_rate')
     def validate_baud_rate(cls, v):
@@ -59,6 +61,8 @@ class DeviceUpdate(BaseModel):
     function_code: Optional[int] = Field(None, ge=1, le=4)
     start_register: Optional[int] = Field(None, ge=0)
     register_count: Optional[int] = Field(None, ge=1)
+    graph_y_min: Optional[float] = None
+    graph_y_max: Optional[float] = None
 
 
 class DeviceResponse(DeviceBase):

@@ -27,6 +27,8 @@ class DeviceSettings(Base):
     function_code = Column(Integer, nullable=False, default=3)
     start_register = Column(Integer, nullable=False)
     register_count = Column(Integer, nullable=False, default=2)
+    graph_y_min = Column(Float, nullable=True, default=600.0)  # Minimum Y-axis value for graph
+    graph_y_max = Column(Float, nullable=True, default=2000.0)  # Maximum Y-axis value for graph
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
