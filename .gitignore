@@ -1,7 +1,36 @@
+# Environment variables (contains passwords and secrets)
+backend/.env
+
+# Python
 backend/venv/
 __pycache__/
+backend/**/__pycache__/
 *.pyc
 *.pyo
-*__init__.py
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+
+# Node.js / Frontend
 frontend/node_modules/
-*nul
+frontend/dist/
+frontend/.vite/
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.bak
+backend/.env
