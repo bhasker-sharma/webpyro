@@ -6,12 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0', // Listen on all network interfaces for network access
-    port: 5173,
-    strictPort: false, // Try next port if 5173 is busy
+    port: 80, // Port 80 - requires Administrator rights
+    strictPort: false, // Try next port if 80 is busy
   },
   preview: {
     host: '0.0.0.0', // Listen on all network interfaces for production preview
-    port: 5173,
+    port: 80,
     strictPort: false,
   },
   build: {

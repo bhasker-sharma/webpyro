@@ -1,11 +1,12 @@
 @echo off
 REM ===================================================================
-REM PRODUCTION STOP - Web Pyrometer Monitoring System
+REM STOP SERVERS - Web Pyrometer Monitoring System
 REM ===================================================================
-REM Stops all production services (backend and frontend)
+REM Stops all services (backend and frontend)
+REM Works for both Development and Production mode
 REM ===================================================================
 
-title Stop Web Pyrometer Production Server
+title Stop Web Pyrometer Servers
 
 echo ========================================
 echo Stopping Web Pyrometer Services
@@ -28,7 +29,8 @@ echo ========================================
 echo All services stopped
 echo ========================================
 echo.
-echo You can now start the system again by running:
-echo   PRODUCTION-START-MINIMAL.bat
+echo You can now start the system again:
+echo   DEV-START.bat (for development mode)
+echo   PRODUCTION-START-MINIMAL.bat (for production)
 echo.
 pause
