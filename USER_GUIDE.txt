@@ -1,0 +1,170 @@
+================================================================================
+                    WEB PYROMETER MONITORING SYSTEM
+                         User Installation Guide
+================================================================================
+
+SYSTEM REQUIREMENTS (PREREQUISITES):
+-----------------------------------
+REQUIRED:
+1. Windows 10/11 (64-bit)
+2. PostgreSQL 14 or later
+   Download: https://www.postgresql.org/download/windows/
+3. Python 3.11 or later (for serving frontend only)
+   Download: https://www.python.org/downloads/
+   IMPORTANT: Check "Add Python to PATH" during installation!
+
+RECOMMENDED:
+- Minimum 4GB RAM
+- 500MB free disk space
+- Network connection (for local network access)
+
+Note: Backend is pre-compiled - No additional Python packages needed!
+
+
+QUICK START (5 MINUTES):
+-----------------------
+
+STEP 1: Install PostgreSQL
+   - Download from: https://www.postgresql.org/download/
+   - Remember your password during installation!
+
+STEP 2: Create Database
+   - Open "pgAdmin 4" (installed with PostgreSQL)
+   - Right-click "Databases" → Create → Database
+   - Database name: modbus_monitor
+   - Click "Save"
+
+STEP 3: Configure Backend
+   - Navigate to: webpyro_backend\ folder
+   - Copy ".env.production" and rename it to ".env"
+   - Edit ".env" file with Notepad:
+     * Replace YOUR_PASSWORD with your PostgreSQL password
+     * Change CONFIG_PIN to your own 4-digit PIN
+
+   Example:
+   DATABASE_URL=postgresql://postgres:admin123@localhost:5432/modbus_monitor
+   CONFIG_PIN=9876
+
+STEP 4: Configure Firewall (RUN AS ADMINISTRATOR)
+   - Right-click "configure-firewall.bat" → Run as administrator
+   - Click "Yes" when prompted
+
+STEP 5: Start the Application
+   - Double-click "PRODUCTION-START-MINIMAL.bat"
+   - Wait for both servers to start (5-10 seconds)
+
+
+ACCESS THE APPLICATION:
+----------------------
+
+From Server Computer:
+   http://localhost
+   or
+   http://COMPUTERNAME
+
+From Other Computers on Network:
+   http://COMPUTERNAME
+   or
+   http://SERVER-IP-ADDRESS
+
+To find your server IP:
+   - Open Command Prompt
+   - Type: ipconfig
+   - Look for "IPv4 Address"
+
+
+STOPPING THE APPLICATION:
+-------------------------
+   - Double-click "PRODUCTION-STOP.bat"
+   or
+   - Close both server windows manually
+
+
+FOLDER STRUCTURE:
+----------------
+WebPyrometer/
+├── webpyro_backend/              ← Backend executable (DO NOT MODIFY)
+│   ├── webpyro_backend.exe       ← Main program
+│   ├── _internal/                ← Required libraries
+│   └── .env                      ← YOUR configuration (EDIT THIS)
+│
+├── frontend/dist/                ← Web interface files
+│
+├── PRODUCTION-START-MINIMAL.bat  ← START HERE (daily use)
+├── PRODUCTION-STOP.bat           ← Stop servers
+├── configure-firewall.bat        ← Run once as Admin
+└── USER_GUIDE.txt                ← This file
+
+
+CONFIGURATION:
+-------------
+All settings in: webpyro_backend\.env
+
+Important settings:
+- DATABASE_URL: Your PostgreSQL connection
+- CONFIG_PIN: 4-digit PIN for device configuration
+- MODBUS_POLL_INTERVAL: Polling frequency (seconds)
+
+
+DEVICE SETUP:
+------------
+1. Start the application
+2. Open in browser: http://localhost
+3. Click "Configure Devices"
+4. Enter CONFIG_PIN (from .env file)
+5. Add your Modbus devices with:
+   - Device name
+   - Slave ID (Modbus address)
+   - COM port (check Device Manager)
+   - Baud rate (match your device)
+6. Enable devices
+7. Save configuration
+
+
+TROUBLESHOOTING:
+---------------
+
+Problem: "Backend not found" error
+Solution: Make sure webpyro_backend folder exists with .exe file
+
+Problem: Database connection error
+Solution:
+   - Verify PostgreSQL is running
+   - Check DATABASE_URL in .env file
+   - Ensure database "modbus_monitor" exists
+
+Problem: Can't access from other computers
+Solution:
+   - Run configure-firewall.bat as Administrator
+   - Make sure both computers are on same network
+   - Try using IP address instead of computer name
+
+Problem: Modbus devices not responding
+Solution:
+   - Check COM port in Device Manager
+   - Verify baud rate matches device settings
+   - Ensure RS485 adapter is connected
+   - Check device power and connections
+
+
+SUPPORT:
+-------
+- Check backend logs: Look at "Backend Server" window
+- Check API status: http://localhost:8000/docs
+- Browser console: Press F12 in browser
+
+
+SECURITY NOTES:
+--------------
+- Change CONFIG_PIN in .env file (default: 1234)
+- Use strong PostgreSQL password
+- Firewall is configured for local network only
+- No data leaves your local network
+
+
+VERSION: 2.0
+BUILT: November 2025
+
+================================================================================
+                        Made for Industrial Monitoring
+================================================================================

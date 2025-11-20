@@ -12,7 +12,7 @@ function Navbar({ onConfigureClick }) {
                     <div className="flex items-center space-x-3">
                         <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition">
                             <img src="/logo.png" alt="TIPL Logo" className="w-8 h-8 object-contain" />
-                            <span className="text-xl font-bold text-gray-800">TIPL Pyrometer Monitor</span>
+                            <span className="text-xl font-bold text-gray-800">Multi IR Thermometer</span>
                         </Link>
                     </div>
 

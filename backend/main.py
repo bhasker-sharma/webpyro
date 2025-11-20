@@ -81,3 +81,20 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(api_router)
+
+
+# Run server when executed directly (for PyInstaller exe)
+if __name__ == "__main__":
+    import uvicorn
+
+    # Get host and port from settings
+    host = settings.server_host if hasattr(settings, 'server_host') else "0.0.0.0"
+    port = settings.server_port if hasattr(settings, 'server_port') else 8000
+
+    print(f"Starting Uvicorn server on {host}:{port}...")
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        log_level="warning"
+    )

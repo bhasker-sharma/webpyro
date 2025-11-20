@@ -13,9 +13,10 @@ echo Stopping Web Pyrometer Services
 echo ========================================
 echo.
 
-REM Kill Python backend processes (uvicorn)
+REM Kill backend processes (executable or Python)
 echo [1/2] Stopping Backend Server...
 taskkill /FI "WINDOWTITLE eq Backend Server*" /T /F >nul 2>&1
+taskkill /F /IM webpyro_backend.exe >nul 2>&1
 taskkill /F /IM uvicorn.exe >nul 2>&1
 taskkill /F /IM python.exe /FI "WINDOWTITLE eq *Backend*" >nul 2>&1
 

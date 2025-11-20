@@ -34,3 +34,5 @@ desktop.ini
 *.tmp
 *.bak
 backend/.env
+backend/dist
+backend/build
