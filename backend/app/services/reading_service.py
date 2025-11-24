@@ -74,20 +74,27 @@ class ReadingService:
             db: Database session
             device_id: Device ID
             limit: Maximum number of readings to return (None for no limit)
-            start_date: Filter readings after this date
-            end_date: Filter readings before this date
+            start_date: Filter readings after this date (timezone-aware)
+            end_date: Filter readings before this date (timezone-aware)
 
         Returns:
             List of DeviceReading objects
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
         query = db.query(DeviceReading).filter(
             DeviceReading.device_id == device_id
         )
 
         # Apply date filters
+        # NOTE: ts_utc is timezone-aware, start_date and end_date are naive UTC datetimes
         if start_date:
+            logger.info(f"Filtering readings >= {start_date} UTC")
             query = query.filter(DeviceReading.ts_utc >= start_date)
+
         if end_date:
+            logger.info(f"Filtering readings <= {end_date} UTC")
             query = query.filter(DeviceReading.ts_utc <= end_date)
 
         # Order by timestamp descending
@@ -98,6 +105,7 @@ class ReadingService:
             query = query.limit(limit)
 
         readings = query.all()
+        logger.info(f"Found {len(readings)} readings for device {device_id}")
 
         return readings
     

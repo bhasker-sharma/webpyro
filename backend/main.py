@@ -29,6 +29,7 @@ async def lifespan(app: FastAPI):
     # STARTUP
     logger.info("=" * 80)
     logger.info(f"{settings.app_name} STARTING UP...")
+    print("-----------SERVER IS STARTED, DO NOT CLOSE---------------")
     logger.info(f"Server running in {'DEBUG' if settings.debug else 'PRODUCTION'} mode")
     logger.info(f"Log files location: {log_dir.absolute()}")
     logger.info("=" * 80)
@@ -38,19 +39,24 @@ async def lifespan(app: FastAPI):
     try:
         if test_connection():
             logger.info("Database connected successfully!")
+            print("** DATBASE CONNECTED SUCCESSFULLY ")
             create_tables()
         else:
             logger.error("Database connection failed!")
+            print("** DAtABASE CONNECTION FAILED")
     except Exception as e:
         logger.error(f"Database initialization error: {e}", exc_info=True)
 
     # Start polling service
     logger.info("Starting polling service...")
+    
     try:
         await polling_service.start()
         logger.info("Polling service started successfully!")
+        print("---------polling started--------")
     except Exception as e:
         logger.error(f"Failed to start polling service: {e}", exc_info=True)
+        print(f"Failed to start polling service: {e}", exc_info=True)
 
 
     yield  # Application runs here
@@ -58,6 +64,7 @@ async def lifespan(app: FastAPI):
     # SHUTDOWN
     logger.info("=" * 80)
     logger.info("SHUTTING DOWN SERVER...")
+    print("SHUTTING DOWN SERVER...")
     logger.info("=" * 80)
 
     # Stop polling service
@@ -70,6 +77,7 @@ async def lifespan(app: FastAPI):
 
 
     logger.info("Server shutdown complete")
+    print("Server shutdown complete")
     logger.info("=" * 80)
 
 

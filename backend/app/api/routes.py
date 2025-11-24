@@ -255,9 +255,7 @@ async def get_readings_for_device(
     #convert to list of dicts
     result = []
     for reading in readings:
-        # Convert UTC timestamp to local time (IST = UTC + 5:30)
-        local_timestamp = reading.ts_utc + timedelta(hours=5, minutes=30)
-
+        # Return timestamp as-is (timezone-aware from database)
         result.append({
             'id':reading.id,
             'device_id':reading.device_id,
@@ -266,7 +264,7 @@ async def get_readings_for_device(
             'ambient_temp': reading.ambient_temp,  # Include ambient temperature
             'status': reading.status,
             'raw_hex': reading.raw_hex,
-            'timestamp': local_timestamp.isoformat()
+            'timestamp': reading.ts_utc.isoformat()
         })
     return result
 
@@ -304,17 +302,24 @@ async def get_filtered_readings(
 
     if start_date:
         try:
-            # Convert to timezone-aware datetime, then remove timezone for naive comparison
-            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00')).replace(tzinfo=None)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid start_date format. Use ISO format (YYYY-MM-DDTHH:MM:SS)")
+            # Parse datetime string (user sends local IST time like "2025-11-24T14:00:00")
+            # Convert IST to UTC by subtracting 5:30 hours
+            start_dt_naive = datetime.fromisoformat(start_date)
+            # Subtract IST offset (5 hours 30 minutes) to get UTC
+            start_dt = start_dt_naive - timedelta(hours=5, minutes=30)
+            logger.info(f"Filter start_date: {start_date} IST -> {start_dt} UTC")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid start_date format: {e}")
 
     if end_date:
         try:
-            # Convert to timezone-aware datetime, then remove timezone for naive comparison
-            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00')).replace(tzinfo=None)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid end_date format. Use ISO format (YYYY-MM-DDTHH:MM:SS)")
+            # Parse datetime string and convert IST to UTC
+            end_dt_naive = datetime.fromisoformat(end_date)
+            # Subtract IST offset (5 hours 30 minutes) to get UTC
+            end_dt = end_dt_naive - timedelta(hours=5, minutes=30)
+            logger.info(f"Filter end_date: {end_date} IST -> {end_dt} UTC")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid end_date format: {e}")
 
     # Get filtered readings
     readings = ReadingService.get_device_readings(
@@ -328,9 +333,8 @@ async def get_filtered_readings(
     # Convert to list of dicts
     result = []
     for reading in readings:
-        # Convert UTC timestamp to local time (IST = UTC + 5:30)
-        local_timestamp = reading.ts_utc + timedelta(hours=5, minutes=30)
-
+        # Return timestamp as-is (timezone-aware datetime from database)
+        # The database stores timezone-aware timestamps, so no conversion needed
         result.append({
             'id': reading.id,
             'device_id': reading.device_id,
@@ -339,7 +343,7 @@ async def get_filtered_readings(
             'ambient_temp': reading.ambient_temp,  # Include ambient temperature
             'status': reading.status,
             'raw_hex': reading.raw_hex,
-            'timestamp': local_timestamp.isoformat(),
+            'timestamp': reading.ts_utc.isoformat(),
             'created_at': reading.created_at.isoformat() if reading.created_at else None
         })
 
@@ -369,15 +373,18 @@ async def export_readings_csv(
 
     if start_date:
         try:
-            # Convert to timezone-aware datetime, then remove timezone for naive comparison
-            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00')).replace(tzinfo=None)
+            # Parse datetime string (user sends local IST time)
+            # Convert IST to UTC by subtracting 5:30 hours
+            start_dt_naive = datetime.fromisoformat(start_date)
+            start_dt = start_dt_naive - timedelta(hours=5, minutes=30)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid start_date format")
 
     if end_date:
         try:
-            # Convert to timezone-aware datetime, then remove timezone for naive comparison
-            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00')).replace(tzinfo=None)
+            # Parse datetime string and convert IST to UTC
+            end_dt_naive = datetime.fromisoformat(end_date)
+            end_dt = end_dt_naive - timedelta(hours=5, minutes=30)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid end_date format")
 
@@ -405,16 +412,16 @@ async def export_readings_csv(
     # Row 2: Total data points
     writer.writerow([f"Total Data Points: {len(readings)}"])
 
-    # Row 3: Date range (convert to IST)
+    # Row 3: Date range (convert back to IST for display)
     if start_dt:
-        start_local = start_dt + timedelta(hours=5, minutes=30)
-        start_date_str = start_local.strftime("%Y-%m-%d %H:%M:%S")
+        start_ist = start_dt + timedelta(hours=5, minutes=30)
+        start_date_str = start_ist.strftime("%Y-%m-%d %H:%M:%S IST")
     else:
         start_date_str = "Beginning"
 
     if end_dt:
-        end_local = end_dt + timedelta(hours=5, minutes=30)
-        end_date_str = end_local.strftime("%Y-%m-%d %H:%M:%S")
+        end_ist = end_dt + timedelta(hours=5, minutes=30)
+        end_date_str = end_ist.strftime("%Y-%m-%d %H:%M:%S IST")
     else:
         end_date_str = "End"
 
@@ -428,7 +435,7 @@ async def export_readings_csv(
 
     # Write data rows
     for idx, reading in enumerate(readings, start=1):
-        # Convert UTC timestamp to local datetime (IST = UTC + 5:30)
+        # Convert UTC timestamp to IST by adding 5:30 hours
         local_dt = reading.ts_utc + timedelta(hours=5, minutes=30)
         date_str = local_dt.strftime("%Y-%m-%d")
         time_str = local_dt.strftime("%H:%M:%S")
@@ -470,16 +477,14 @@ async def debug_readings(db: Session = Depends(get_db)):
         }
 
         for reading in all_readings:
-            # Convert UTC timestamp to local time (IST = UTC + 5:30)
-            local_timestamp = reading.ts_utc + timedelta(hours=5, minutes=30)
-
+            # Return timestamp as-is (timezone-aware from database)
             result["recent_readings"].append({
                 "id": reading.id,
                 "device_id": reading.device_id,
                 "device_name": reading.device_name,
                 "temperature": reading.value,
                 "status": reading.status,
-                "timestamp": local_timestamp.isoformat()
+                "timestamp": reading.ts_utc.isoformat()
             })
 
         return result

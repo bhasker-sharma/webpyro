@@ -76,16 +76,21 @@ function PreviewPage() {
         setError(null);
 
         try {
-            // Convert datetime-local format to ISO format for API
-            const startISO = new Date(startDate).toISOString();
-            const endISO = new Date(endDate).toISOString();
+            // IMPORTANT: Don't use toISOString() as it converts to UTC
+            // Instead, send the datetime as-is (in local IST timezone)
+            // Format: 2025-11-24T14:00:00 (no Z suffix = treated as local time by backend)
+            const startISO = startDate + ':00';  // Add seconds if not present
+            const endISO = endDate + ':00';      // Add seconds if not present
 
-            const url = `${API_BASE_URL}/api/reading/filter?device_id=${selectedDevice}&start_date=${startISO}&end_date=${endISO}`;
+            console.log('Filter request (IST):', { startISO, endISO, device_id: selectedDevice });
+
+            const url = `${API_BASE_URL}/api/reading/filter?device_id=${selectedDevice}&start_date=${encodeURIComponent(startISO)}&end_date=${encodeURIComponent(endISO)}`;
             const response = await fetch(url);
 
             if (!response.ok) throw new Error('Failed to fetch readings');
 
             const data = await response.json();
+            console.log('Filter response:', data);
             setPreviewData(data.readings || []);
 
             if (data.readings.length === 0) {
@@ -111,10 +116,11 @@ function PreviewPage() {
         }
 
         try {
-            const startISO = new Date(startDate).toISOString();
-            const endISO = new Date(endDate).toISOString();
+            // Send datetime as-is (in local IST timezone), same as filter
+            const startISO = startDate + ':00';
+            const endISO = endDate + ':00';
 
-            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice}&start_date=${startISO}&end_date=${endISO}`;
+            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice}&start_date=${encodeURIComponent(startISO)}&end_date=${encodeURIComponent(endISO)}`;
 
             // Get device name for filename
             const deviceName = devices.find(d => d.id == selectedDevice)?.name || 'device';
@@ -126,10 +132,13 @@ function PreviewPage() {
             if (!response.ok) throw new Error('Failed to fetch CSV');
             const blob = await response.blob();
 
-            // Check if File System Access API is supported
-            if ('showSaveFilePicker' in window) {
+            // Check if File System Access API is supported and if we're in a secure context
+            const isSecureContext = window.isSecureContext;
+            const hasFilePicker = 'showSaveFilePicker' in window;
+
+            if (hasFilePicker && isSecureContext) {
                 try {
-                    // Show save dialog
+                    // Show save dialog (only works on HTTPS or localhost)
                     const handle = await window.showSaveFilePicker({
                         suggestedName: filename,
                         types: [{
@@ -152,7 +161,7 @@ function PreviewPage() {
                     }
                 }
             } else {
-                // Fallback for browsers that don't support File System Access API
+                // Fallback: Download directly to browser's default download location
                 const blobUrl = window.URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = blobUrl;
@@ -163,6 +172,13 @@ function PreviewPage() {
                 window.URL.revokeObjectURL(blobUrl);
 
                 setError(null);
+
+                // Inform user about the download location and how to change it
+                alert(`File downloaded to your default Downloads folder!\n\n` +
+                      `To choose save location:\n` +
+                      `1. Open Chrome Settings (chrome://settings/downloads)\n` +
+                      `2. Enable "Ask where to save each file before downloading"\n\n` +
+                      `Or access the app via HTTPS for better file save options.`);
             }
         } catch (err) {
             console.error('Error exporting data:', err);

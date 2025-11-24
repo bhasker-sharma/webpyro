@@ -93,15 +93,15 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
         };
     }, []);
 
-    // Calculate grid columns based on number of devices
+    // Calculate grid columns based on number of devices and screen size
     const getGridColumns = () => {
         const count = devices.length;
         if (count === 0) return 'grid-cols-1';
-        if (count === 1) return 'grid-cols-1';
-        if (count === 2) return 'grid-cols-2';
-        if (count <= 6) return 'grid-cols-3';
-        if (count <= 12) return 'grid-cols-4';
-        return 'grid-cols-4';  // 13-16 devices also use 4 columns
+        if (count === 1) return 'grid-cols-1 sm:grid-cols-1';
+        if (count === 2) return 'grid-cols-1 sm:grid-cols-2';
+        if (count <= 6) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3';
+        if (count <= 12) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
+        return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4';  // 13-16 devices
     };
 
     const fetchDevices = async () => {
@@ -146,18 +146,50 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     const formatTimeAgo = (timestamp) => {
         if (!timestamp) return 'Never';
 
-        const now = new Date();
-        const past = new Date(timestamp);
-        const diffMs = now - past;
-        const diffSec = Math.floor(diffMs / 1000);
+        try {
+            const now = new Date();
 
-        if (diffSec < 60) return `${diffSec}s ago`;
-        const diffMin = Math.floor(diffSec / 60);
-        if (diffMin < 60) return `${diffMin}m ago`;
-        const diffHour = Math.floor(diffMin / 60);
-        if (diffHour < 24) return `${diffHour}h ago`;
-        const diffDay = Math.floor(diffHour / 24);
-        return `${diffDay}d ago`;
+            // Backend sends UTC timestamps without 'Z' suffix, so we need to add it
+            // to ensure JavaScript parses it as UTC, not local time
+            let utcTimestamp = timestamp;
+            if (timestamp && !timestamp.endsWith('Z') && !timestamp.includes('+')) {
+                utcTimestamp = timestamp + 'Z';
+            }
+
+            const past = new Date(utcTimestamp);
+
+            // Check if the parsed date is valid
+            if (isNaN(past.getTime())) {
+                console.error('Invalid timestamp:', timestamp);
+                return 'Invalid time';
+            }
+
+            const diffMs = now - past;
+            const diffSec = Math.floor(diffMs / 1000);
+
+            // Handle negative time differences (future timestamps or clock issues)
+            if (diffSec < 0) {
+                console.warn('Timestamp is in the future:', timestamp);
+                return 'Just now';
+            }
+
+            // Handle very large time differences (likely data issue)
+            if (diffSec > 86400 * 365) { // More than 1 year
+                console.warn('Timestamp is more than 1 year old:', timestamp);
+                return 'Long ago';
+            }
+
+            if (diffSec < 60) return `${diffSec}s ago`;
+            const diffMin = Math.floor(diffSec / 60);
+            if (diffMin < 60) return `${diffMin}m ago`;
+            const diffHour = Math.floor(diffMin / 60);
+            if (diffHour < 24) return `${diffHour}h ago`;
+            const diffDay = Math.floor(diffHour / 24);
+            return `${diffDay}d ago`;
+        } catch (error) {
+            console.error('Error formatting timestamp:', timestamp, error);
+            return 'Error';
+        }
     };
 
     const handleSaveDevices = async (configuredDevices) => {
