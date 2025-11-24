@@ -410,10 +410,43 @@ Historical data archive
 
 ## Troubleshooting
 
+### Centralized Logging System
+
+The application includes comprehensive logging to help diagnose issues. All log files are in `backend/logs/`:
+
+**Quick diagnosis:**
+```powershell
+# Check all errors (RECOMMENDED - check this first!)
+Get-Content backend\logs\errors.log -Tail 20
+
+# Monitor errors in real-time
+Get-Content backend\logs\errors.log -Wait -Tail 20
+
+# Check Modbus communication issues
+Get-Content backend\logs\modbus.log -Tail 20
+
+# Check API requests
+Get-Content backend\logs\api.log -Tail 20
+```
+
+**Log files:**
+- `errors.log` - All errors (check this first!) ⚠️
+- `modbus.log` - Device communication issues
+- `polling.log` - Polling service status
+- `database.log` - Database connection issues
+- `api.log` - HTTP request/response logs
+- `websocket.log` - WebSocket connection logs
+- `app.log` - General application logs
+
+For complete logging documentation, see: **backend/LOGGING.md**
+
+---
+
 ### Cannot connect to database
 - Verify PostgreSQL is running (Services → postgresql-x64-XX)
 - Check `DATABASE_URL` in `backend\.env`
 - Ensure database `modbus_monitor` exists
+- **Check logs**: `backend\logs\database.log` and `backend\logs\errors.log`
 
 ### Port already in use
 ```bash
@@ -431,6 +464,7 @@ taskkill /PID <process-id> /F
 - Ensure RS485 adapter is connected
 - Check device slave ID is correct
 - Verify device is powered on
+- **Check logs**: `backend\logs\modbus.log` for detailed communication errors
 
 ### Cannot access from network
 - Run `configure-firewall.bat` as Administrator
@@ -443,6 +477,7 @@ taskkill /PID <process-id> /F
 - Verify devices are enabled
 - Check browser console for errors (F12)
 - Verify backend is running: `http://localhost:8000/api/health`
+- **Check logs**: `backend\logs\polling.log` to see if devices are being polled
 
 ---
 
