@@ -49,9 +49,21 @@ function GraphSection({ devices, devicesWithReadings }) {
 
             if (!reading || reading.status === 'Err') return;
 
-            // Parse UTC timestamp correctly by adding 'Z' to indicate UTC
-            const timestampStr = reading.timestamp.endsWith('Z') ? reading.timestamp : reading.timestamp + 'Z';
-            const timestamp = new Date(timestampStr).getTime();
+            // Parse UTC timestamp - handles both 'Z' suffix and '+00:00' timezone format
+            let timestamp;
+            try {
+                // ISO 8601 timestamp (with timezone info like +00:00 or Z)
+                timestamp = new Date(reading.timestamp).getTime();
+
+                // Validate timestamp
+                if (isNaN(timestamp)) {
+                    console.error('Invalid timestamp:', reading.timestamp);
+                    return;
+                }
+            } catch (e) {
+                console.error('Failed to parse timestamp:', reading.timestamp, e);
+                return;
+            }
 
             // IMMEDIATE CLEANUP: Skip data that's already outside time window
             if (timestamp < cutoffTime) return;

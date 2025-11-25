@@ -8,7 +8,7 @@ from app.api.websocket import router as websocket_router  # WebSocket routes
 from app.database import get_db, engine
 from sqlalchemy import text
 from app.models.device import DeviceSettings, DeviceReading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.services.reading_service import ReadingService
 from fastapi.responses import StreamingResponse
 from app.config import get_settings
@@ -302,22 +302,23 @@ async def get_filtered_readings(
 
     if start_date:
         try:
-            # Parse datetime string (user sends local IST time like "2025-11-24T14:00:00")
-            # Convert IST to UTC by subtracting 5:30 hours
-            start_dt_naive = datetime.fromisoformat(start_date)
-            # Subtract IST offset (5 hours 30 minutes) to get UTC
-            start_dt = start_dt_naive - timedelta(hours=5, minutes=30)
-            logger.info(f"Filter start_date: {start_date} IST -> {start_dt} UTC")
+            # Parse datetime string (frontend sends UTC time from user's local timezone)
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            # Make timezone-aware if not already
+            if start_dt.tzinfo is None:
+                start_dt = start_dt.replace(tzinfo=timezone.utc)
+            logger.info(f"Filter start_date: {start_date} -> {start_dt} UTC")
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid start_date format: {e}")
 
     if end_date:
         try:
-            # Parse datetime string and convert IST to UTC
-            end_dt_naive = datetime.fromisoformat(end_date)
-            # Subtract IST offset (5 hours 30 minutes) to get UTC
-            end_dt = end_dt_naive - timedelta(hours=5, minutes=30)
-            logger.info(f"Filter end_date: {end_date} IST -> {end_dt} UTC")
+            # Parse datetime string (frontend sends UTC time from user's local timezone)
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            # Make timezone-aware if not already
+            if end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            logger.info(f"Filter end_date: {end_date} -> {end_dt} UTC")
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid end_date format: {e}")
 
@@ -373,18 +374,21 @@ async def export_readings_csv(
 
     if start_date:
         try:
-            # Parse datetime string (user sends local IST time)
-            # Convert IST to UTC by subtracting 5:30 hours
-            start_dt_naive = datetime.fromisoformat(start_date)
-            start_dt = start_dt_naive - timedelta(hours=5, minutes=30)
+            # Parse datetime string (frontend sends UTC time from user's local timezone)
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            # Make timezone-aware if not already
+            if start_dt.tzinfo is None:
+                start_dt = start_dt.replace(tzinfo=timezone.utc)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid start_date format")
 
     if end_date:
         try:
-            # Parse datetime string and convert IST to UTC
-            end_dt_naive = datetime.fromisoformat(end_date)
-            end_dt = end_dt_naive - timedelta(hours=5, minutes=30)
+            # Parse datetime string (frontend sends UTC time from user's local timezone)
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            # Make timezone-aware if not already
+            if end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid end_date format")
 
@@ -412,16 +416,14 @@ async def export_readings_csv(
     # Row 2: Total data points
     writer.writerow([f"Total Data Points: {len(readings)}"])
 
-    # Row 3: Date range (convert back to IST for display)
+    # Row 3: Date range (display in UTC)
     if start_dt:
-        start_ist = start_dt + timedelta(hours=5, minutes=30)
-        start_date_str = start_ist.strftime("%Y-%m-%d %H:%M:%S IST")
+        start_date_str = start_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
     else:
         start_date_str = "Beginning"
 
     if end_dt:
-        end_ist = end_dt + timedelta(hours=5, minutes=30)
-        end_date_str = end_ist.strftime("%Y-%m-%d %H:%M:%S IST")
+        end_date_str = end_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
     else:
         end_date_str = "End"
 
@@ -431,14 +433,14 @@ async def export_readings_csv(
     writer.writerow([])
 
     # Row 5: Column headers
-    writer.writerow(['Serial Number', 'Database ID', 'Date', 'Time', 'Temperature', 'Ambient Temp', 'Status'])
+    writer.writerow(['Serial Number', 'Database ID', 'Date (UTC)', 'Time (UTC)', 'Temperature', 'Ambient Temp', 'Status'])
 
     # Write data rows
     for idx, reading in enumerate(readings, start=1):
-        # Convert UTC timestamp to IST by adding 5:30 hours
-        local_dt = reading.ts_utc + timedelta(hours=5, minutes=30)
-        date_str = local_dt.strftime("%Y-%m-%d")
-        time_str = local_dt.strftime("%H:%M:%S")
+        # Use UTC timestamp directly
+        utc_dt = reading.ts_utc
+        date_str = utc_dt.strftime("%Y-%m-%d")
+        time_str = utc_dt.strftime("%H:%M:%S")
 
         writer.writerow([
             idx,  # Serial number starting from 1

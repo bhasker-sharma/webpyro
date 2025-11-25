@@ -76,15 +76,21 @@ function PreviewPage() {
         setError(null);
 
         try {
-            // IMPORTANT: Don't use toISOString() as it converts to UTC
-            // Instead, send the datetime as-is (in local IST timezone)
-            // Format: 2025-11-24T14:00:00 (no Z suffix = treated as local time by backend)
-            const startISO = startDate + ':00';  // Add seconds if not present
-            const endISO = endDate + ':00';      // Add seconds if not present
+            // Convert local datetime to UTC for backend
+            // The datetime-local input gives us "2025-11-24T14:00" which is in user's local timezone
+            // Convert to UTC timestamp string
+            const startUTC = new Date(startDate).toISOString();
+            const endUTC = new Date(endDate).toISOString();
 
-            console.log('Filter request (IST):', { startISO, endISO, device_id: selectedDevice });
+            console.log('Filter request:', {
+                startLocal: startDate,
+                startUTC,
+                endLocal: endDate,
+                endUTC,
+                device_id: selectedDevice
+            });
 
-            const url = `${API_BASE_URL}/api/reading/filter?device_id=${selectedDevice}&start_date=${encodeURIComponent(startISO)}&end_date=${encodeURIComponent(endISO)}`;
+            const url = `${API_BASE_URL}/api/reading/filter?device_id=${selectedDevice}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
             const response = await fetch(url);
 
             if (!response.ok) throw new Error('Failed to fetch readings');
@@ -116,11 +122,11 @@ function PreviewPage() {
         }
 
         try {
-            // Send datetime as-is (in local IST timezone), same as filter
-            const startISO = startDate + ':00';
-            const endISO = endDate + ':00';
+            // Convert local datetime to UTC for backend (same as filter)
+            const startUTC = new Date(startDate).toISOString();
+            const endUTC = new Date(endDate).toISOString();
 
-            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice}&start_date=${encodeURIComponent(startISO)}&end_date=${encodeURIComponent(endISO)}`;
+            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
 
             // Get device name for filename
             const deviceName = devices.find(d => d.id == selectedDevice)?.name || 'device';

@@ -44,14 +44,12 @@ class ReadingService:
             }
             
             if latest_reading:
-                # Convert UTC timestamp to local time (IST = UTC + 5:30)
-                local_timestamp = latest_reading.ts_utc + timedelta(hours=5, minutes=30)
-
+                # Return UTC timestamp (frontend will convert to user's local time)
                 device_data['latest_reading'] = {
                     'temperature': latest_reading.value,
                     'status': latest_reading.status,
                     'raw_hex': latest_reading.raw_hex,
-                    'timestamp': local_timestamp.isoformat(),
+                    'timestamp': latest_reading.ts_utc.isoformat(),
                     'time_ago': ReadingService._time_ago(latest_reading.ts_utc)
                 }
             
@@ -135,18 +133,17 @@ class ReadingService:
                 .order_by(desc(DeviceReading.ts_utc))\
                 .first()
             
-            # Convert UTC timestamp to local time if available
-            latest_timestamp_local = None
+            # Return UTC timestamp (frontend will convert to user's local time)
+            latest_timestamp_utc = None
             if latest:
-                local_ts = latest.ts_utc + timedelta(hours=5, minutes=30)
-                latest_timestamp_local = local_ts.isoformat()
+                latest_timestamp_utc = latest.ts_utc.isoformat()
 
             device_stats.append({
                 'device_id': device.id,
                 'device_name': device.name,
                 'reading_count': count,
                 'latest_status': latest.status if latest else None,
-                'latest_timestamp': latest_timestamp_local
+                'latest_timestamp': latest_timestamp_utc
             })
         
         # Readings by status

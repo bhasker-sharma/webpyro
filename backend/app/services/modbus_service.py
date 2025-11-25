@@ -7,7 +7,7 @@ from pymodbus.exceptions import ModbusException
 import struct
 import logging
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 from app.config import get_settings
 
@@ -108,7 +108,7 @@ class ModbusService:
             'ambient_temp': None,
             'status': 'Err',
             'raw_hex': '',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'error_message': ''
         }
 

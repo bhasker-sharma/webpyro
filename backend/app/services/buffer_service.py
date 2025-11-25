@@ -91,22 +91,33 @@ class PingPongBuffer:
     def _save_buffer_to_db(self, readings: List[Dict], buffer_name: str) -> None:
         """
         Save a batch of readings to database
-        
+
         Args:
             readings: List of reading dictionaries
             buffer_name: Name of buffer being saved (for logging)
         """
         if not readings:
             return
-        
+
         db = SessionLocal()
         try:
+            # Get valid device IDs from database to prevent foreign key errors
+            from app.models.device import DeviceSettings
+            valid_device_ids = set(db.query(DeviceSettings.id).all())
+            valid_device_ids = set(id[0] for id in valid_device_ids)
+
             logger.info(f"Saving Buffer {buffer_name} to database ({len(readings)} readings)...")
 
             # Create DeviceReading objects
             db_readings = []
+            skipped_invalid_devices = 0
             for reading in readings:
                 try:
+                    # Skip readings for devices that don't exist in database
+                    if reading['device_id'] not in valid_device_ids:
+                        skipped_invalid_devices += 1
+                        continue
+
                     db_reading = DeviceReading(
                         device_id=reading['device_id'],
                         device_name=reading['device_name'],
@@ -120,6 +131,9 @@ class PingPongBuffer:
                 except Exception as reading_error:
                     logger.warning(f"Skipping invalid reading: {reading_error}")
                     continue
+
+            if skipped_invalid_devices > 0:
+                logger.warning(f"Skipped {skipped_invalid_devices} readings for non-existent devices (foreign key protection)")
 
             if not db_readings:
                 logger.warning(f"No valid readings to save in Buffer {buffer_name}")
