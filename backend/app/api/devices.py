@@ -71,7 +71,15 @@ async def create_device(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Device with name '{device.name}' already exists"
         )
-    
+
+    # Check if instrument ID (slave_id) already exists
+    existing_slave = DeviceService.get_device_by_slave_id(db, device.slave_id)
+    if existing_slave:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Instrument ID {device.slave_id} is already in use by device '{existing_slave.name}'. Each device must have a unique Instrument ID (1-16)."
+        )
+
     # Create device
     new_device = DeviceService.create_device(db, device)
     return new_device
@@ -93,7 +101,17 @@ async def update_device(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Device with name '{device_update.name}' already exists"
-            ) 
+            )
+
+    # Check if slave_id is being changed and if it conflicts
+    if device_update.slave_id:
+        existing_slave = DeviceService.get_device_by_slave_id(db, device_update.slave_id)
+        if existing_slave and existing_slave.id != device_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Instrument ID {device_update.slave_id} is already in use by device '{existing_slave.name}'. Each device must have a unique Instrument ID (1-16)."
+            )
+
     # Update device
     updated_device = DeviceService.update_device(db, device_id, device_update)
     if not updated_device:

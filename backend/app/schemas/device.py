@@ -15,7 +15,7 @@ from typing import Optional
 class DeviceBase(BaseModel):
     """Base schema with common device fields"""
     name: str = Field(..., min_length=1, max_length=100, description="Device name")
-    slave_id: int = Field(..., ge=1, le=247, description="Modbus slave ID (1-247)")
+    slave_id: int = Field(..., ge=1, le=16, description="Instrument ID (1-16) - This software supports up to 16 devices")
     baud_rate: int = Field(9600, description="Baud rate for communication")
     com_port: str = Field(..., max_length=20, description="COM port (e.g., COM3)")
     enabled: bool = Field(True, description="Device enabled status")
@@ -25,8 +25,8 @@ class DeviceBase(BaseModel):
     function_code: Optional[int] = Field(None, ge=1, le=4, description="Modbus function code (populated from .env)")
     start_register: Optional[int] = Field(None, ge=0, description="Starting register (populated from .env)")
     register_count: Optional[int] = Field(None, ge=1, description="Number of registers to read (populated from .env)")
-    graph_y_min: Optional[float] = Field(600.0, description="Minimum Y-axis value for graph display")
-    graph_y_max: Optional[float] = Field(2000.0, description="Maximum Y-axis value for graph display")
+    graph_y_min: Optional[float] = Field(600.0, ge=600.0, le=2000.0, description="Minimum Y-axis value for graph display (600-2000)")
+    graph_y_max: Optional[float] = Field(2000.0, ge=600.0, le=2000.0, description="Maximum Y-axis value for graph display (600-2000)")
 
     @validator('baud_rate')
     def validate_baud_rate(cls, v):
@@ -43,6 +43,14 @@ class DeviceBase(BaseModel):
             raise ValueError('COM port must start with "COM"')
         return v.upper()
 
+    @validator('graph_y_max')
+    def validate_y_range(cls, v, values):
+        """Validate that graph_y_max is greater than graph_y_min"""
+        if 'graph_y_min' in values and values['graph_y_min'] is not None and v is not None:
+            if v <= values['graph_y_min']:
+                raise ValueError('graph_y_max must be greater than graph_y_min')
+        return v
+
 
 class DeviceCreate(DeviceBase):
     """Schema for creating a new device"""
@@ -52,7 +60,7 @@ class DeviceCreate(DeviceBase):
 class DeviceUpdate(BaseModel):
     """Schema for updating a device (all fields optional)"""
     name: Optional[str] = Field(None, min_length=1, max_length=100)
-    slave_id: Optional[int] = Field(None, ge=1, le=247)
+    slave_id: Optional[int] = Field(None, ge=1, le=16, description="Instrument ID (1-16)")
     baud_rate: Optional[int] = None
     com_port: Optional[str] = Field(None, max_length=20)
     enabled: Optional[bool] = None
@@ -61,8 +69,8 @@ class DeviceUpdate(BaseModel):
     function_code: Optional[int] = Field(None, ge=1, le=4)
     start_register: Optional[int] = Field(None, ge=0)
     register_count: Optional[int] = Field(None, ge=1)
-    graph_y_min: Optional[float] = None
-    graph_y_max: Optional[float] = None
+    graph_y_min: Optional[float] = Field(None, ge=600.0, le=2000.0, description="Minimum Y-axis value (600-2000)")
+    graph_y_max: Optional[float] = Field(None, ge=600.0, le=2000.0, description="Maximum Y-axis value (600-2000)")
 
 
 class DeviceResponse(DeviceBase):

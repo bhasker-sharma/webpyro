@@ -111,11 +111,87 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
     };
 
     const handleCommonConfigChange = (field, value) => {
+        // Validate Y-range values
+        if (field === 'graph_y_min' || field === 'graph_y_max') {
+            const numValue = parseFloat(value);
+            if (numValue < 600) {
+                value = 600;
+            } else if (numValue > 2000) {
+                value = 2000;
+            }
+        }
         setCommonConfig({ ...commonConfig, [field]: value });
+    };
+
+    // Validation helper functions
+    const getValidationErrors = () => {
+        const errors = [];
+        const slaveIds = new Set();
+        const names = new Set();
+
+        configDevices.forEach((device, index) => {
+            // Check for duplicate slave IDs
+            if (slaveIds.has(device.slave_id)) {
+                errors.push(`Row ${index + 1}: Duplicate Instrument ID ${device.slave_id}`);
+            } else {
+                slaveIds.add(device.slave_id);
+            }
+
+            // Check for duplicate names
+            const trimmedName = device.name.trim();
+            if (names.has(trimmedName)) {
+                errors.push(`Row ${index + 1}: Duplicate device name "${trimmedName}"`);
+            } else {
+                names.add(trimmedName);
+            }
+
+            // Check slave_id range (1-16)
+            if (device.slave_id < 1 || device.slave_id > 16) {
+                errors.push(`Row ${index + 1}: Instrument ID must be between 1 and 16`);
+            }
+        });
+
+        // Check Y-range
+        if (commonConfig.graph_y_min < 600 || commonConfig.graph_y_min > 2000) {
+            errors.push('Graph Y-Min must be between 600 and 2000');
+        }
+        if (commonConfig.graph_y_max < 600 || commonConfig.graph_y_max > 2000) {
+            errors.push('Graph Y-Max must be between 600 and 2000');
+        }
+        if (commonConfig.graph_y_max <= commonConfig.graph_y_min) {
+            errors.push('Graph Y-Max must be greater than Y-Min');
+        }
+
+        return errors;
+    };
+
+    // Check if a slave_id is duplicate
+    const isDuplicateSlaveId = (index) => {
+        const currentSlaveId = configDevices[index].slave_id;
+        return configDevices.some((device, i) => i !== index && device.slave_id === currentSlaveId);
+    };
+
+    // Check if a name is duplicate
+    const isDuplicateName = (index) => {
+        const currentName = configDevices[index].name.trim();
+        return configDevices.some((device, i) => i !== index && device.name.trim() === currentName);
     };
 
     const handleChange = (index, field, value) => {
         const updated = [...configDevices];
+
+        // Enforce slave_id range (1-16)
+        if (field === 'slave_id') {
+            const numValue = parseInt(value) || 1;
+            if (numValue < 1) {
+                value = 1;
+            } else if (numValue > 16) {
+                value = 16;
+            } else {
+                value = numValue;
+            }
+        }
+
         updated[index] = { ...updated[index], [field]: value };
         setConfigDevices(updated);
     };
@@ -141,11 +217,15 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
     const handleAddRow = () => {
         if (configDevices.length < 16) {
-            // Find the next available slave_id
+            // Find the next available slave_id (1-16)
             const existingSlaveIds = configDevices.map(d => d.slave_id);
             let nextSlaveId = 1;
-            while (existingSlaveIds.includes(nextSlaveId) && nextSlaveId <= 247) {
+            while (existingSlaveIds.includes(nextSlaveId) && nextSlaveId <= 16) {
                 nextSlaveId++;
+            }
+            // If all IDs 1-16 are taken, default to 1 (user will need to fix the duplicate)
+            if (nextSlaveId > 16) {
+                nextSlaveId = 1;
             }
             setConfigDevices([...configDevices, createNewDevice(nextSlaveId)]);
         }
@@ -158,6 +238,13 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
     };
 
     const handleSave = () => {
+        // Validate before saving
+        const validationErrors = getValidationErrors();
+        if (validationErrors.length > 0) {
+            alert('Please fix the following errors:\n\n' + validationErrors.join('\n'));
+            return;
+        }
+
         // Apply common config to all devices before saving
         const devicesWithCommonConfig = configDevices.map(device => ({
             ...device,
@@ -267,7 +354,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
                 <div className="flex-1 overflow-auto p-4">
                     <div className="mb-4 text-sm text-gray-600">
-                        Add devices one by one (maximum 16 devices). Use the + button to add new rows, - button to delete rows, and toggle to enable/disable devices. Toggle to enable, select if graph is needed and add name of the location of pyrometer , enter instrument id from 1- 16 and baud rate depending on Id and baud rate entered in the respective pyrometer.
+                        Add devices one by one (maximum 16 devices). Use the + button to add new rows, - button to delete rows, and toggle to enable/disable devices. Toggle to enable, select if graph is needed and add name of the location of pyrometer, enter <strong>unique Instrument ID from 1-16</strong> (no duplicates allowed), and baud rate depending on ID and baud rate entered in the respective pyrometer. <strong>Device names must also be unique.</strong>
                     </div>
 
                     {/* Common Configuration Section */}
@@ -309,10 +396,14 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                         type="number"
                                         value={commonConfig.graph_y_min}
                                         onChange={(e) => handleCommonConfigChange('graph_y_min', parseFloat(e.target.value) || 600)}
-                                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
-                                        min="0"
+                                        className={`w-full px-2 py-1.5 text-sm border rounded bg-white ${
+                                            commonConfig.graph_y_min < 600 || commonConfig.graph_y_min > 2000 ? 'border-red-500 border-2' : 'border-gray-300'
+                                        }`}
+                                        min="600"
+                                        max="2000"
                                         step="50"
                                         placeholder="600"
+                                        title="Must be between 600-2000"
                                     />
                                 </div>
                                 <div>
@@ -321,10 +412,14 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                         type="number"
                                         value={commonConfig.graph_y_max}
                                         onChange={(e) => handleCommonConfigChange('graph_y_max', parseFloat(e.target.value) || 2000)}
-                                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
-                                        min="0"
+                                        className={`w-full px-2 py-1.5 text-sm border rounded bg-white ${
+                                            commonConfig.graph_y_max < 600 || commonConfig.graph_y_max > 2000 || commonConfig.graph_y_max <= commonConfig.graph_y_min ? 'border-red-500 border-2' : 'border-gray-300'
+                                        }`}
+                                        min="600"
+                                        max="2000"
                                         step="50"
                                         placeholder="2000"
+                                        title="Must be between 600-2000 and greater than Y-Min"
                                     />
                                 </div>
                             </div>
@@ -379,8 +474,11 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                                 type="text"
                                                 value={device.name}
                                                 onChange={(e) => handleChange(index, 'name', e.target.value)}
-                                                className="w-full px-2 py-1 text-sm border rounded bg-white"
+                                                className={`w-full px-2 py-1 text-sm border rounded bg-white ${
+                                                    isDuplicateName(index) ? 'border-red-500 border-2' : ''
+                                                }`}
                                                 placeholder="Device Name"
+                                                title={isDuplicateName(index) ? 'Duplicate device name!' : ''}
                                             />
                                         </td>
                                         <td className="border border-gray-300 px-2 py-2">
@@ -388,9 +486,15 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                                 type="number"
                                                 value={device.slave_id}
                                                 onChange={(e) => handleChange(index, 'slave_id', parseInt(e.target.value) || 1)}
-                                                className="w-20 px-2 py-1 text-sm border rounded bg-white"
+                                                className={`w-20 px-2 py-1 text-sm border rounded bg-white ${
+                                                    isDuplicateSlaveId(index) || device.slave_id < 1 || device.slave_id > 16 ? 'border-red-500 border-2' : ''
+                                                }`}
                                                 min="1"
-                                                max="247"
+                                                max="16"
+                                                title={
+                                                    isDuplicateSlaveId(index) ? 'Duplicate Instrument ID!' :
+                                                    (device.slave_id < 1 || device.slave_id > 16) ? 'Must be between 1-16' : ''
+                                                }
                                             />
                                         </td>
                                         <td className="border border-gray-300 px-2 py-2">

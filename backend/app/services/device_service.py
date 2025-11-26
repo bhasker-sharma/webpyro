@@ -50,15 +50,29 @@ class DeviceService:
     def get_device_by_name(db: Session, name: str) -> Optional[DeviceSettings]:
         """
         Get device by name
-        
+
         Args:
             db: Database session
             name: Device name
-            
+
         Returns:
             DeviceSettings object or None
         """
         return db.query(DeviceSettings).filter(DeviceSettings.name == name).first()
+
+    @staticmethod
+    def get_device_by_slave_id(db: Session, slave_id: int) -> Optional[DeviceSettings]:
+        """
+        Get device by slave_id (Instrument ID)
+
+        Args:
+            db: Database session
+            slave_id: Slave ID (Instrument ID)
+
+        Returns:
+            DeviceSettings object or None
+        """
+        return db.query(DeviceSettings).filter(DeviceSettings.slave_id == slave_id).first()
 
     @staticmethod
     def create_device(db: Session, device: DeviceCreate) -> DeviceSettings:
