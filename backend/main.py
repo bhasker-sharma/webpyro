@@ -9,6 +9,7 @@ from app.config import get_settings
 from app.api.routes import router as api_router
 from app.database import test_connection, create_tables
 from app.services.polling_service import polling_service
+from app.services.data_retention_service import retention_service
 from app.logging_config import setup_logging  # Import centralized logging
 
 # Initialize centralized logging system
@@ -49,7 +50,7 @@ async def lifespan(app: FastAPI):
 
     # Start polling service
     logger.info("Starting polling service...")
-    
+
     try:
         await polling_service.start()
         logger.info("Polling service started successfully!")
@@ -57,6 +58,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to start polling service: {e}", exc_info=True)
         print(f"Failed to start polling service: {e}", exc_info=True)
+
+    # Start data retention service
+    logger.info("Starting data retention service...")
+
+    try:
+        await retention_service.start()
+        logger.info("Data retention service started successfully!")
+        print("---------data retention service started--------")
+    except Exception as e:
+        logger.error(f"Failed to start retention service: {e}", exc_info=True)
+        print(f"Failed to start retention service: {e}", exc_info=True)
 
 
     yield  # Application runs here
@@ -66,6 +78,14 @@ async def lifespan(app: FastAPI):
     logger.info("SHUTTING DOWN SERVER...")
     print("SHUTTING DOWN SERVER...")
     logger.info("=" * 80)
+
+    # Stop data retention service
+    logger.info("Stopping data retention service...")
+    try:
+        await retention_service.stop()
+        logger.info("Data retention service stopped successfully!")
+    except Exception as e:
+        logger.error(f"Error stopping retention service: {e}", exc_info=True)
 
     # Stop polling service
     logger.info("Stopping polling service...")

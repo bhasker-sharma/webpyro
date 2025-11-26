@@ -13,6 +13,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Import retention service for cleanup (lazy import to avoid circular dependency)
+_retention_service = None
+
+def _get_retention_service():
+    """Lazy load retention service to avoid circular import"""
+    global _retention_service
+    if _retention_service is None:
+        try:
+            from app.services.data_retention_service import retention_service
+            _retention_service = retention_service
+        except Exception as e:
+            logger.warning(f"Could not import retention service: {e}")
+    return _retention_service
+
 
 class PingPongBuffer:
     """
@@ -163,6 +177,15 @@ class PingPongBuffer:
 
                 self.total_saved += saved_count
                 logger.info(f"Buffer {buffer_name} saved {saved_count}/{len(db_readings)} readings individually (Total: {self.total_saved})")
+
+            # Call retention service cleanup (optional safety mechanism)
+            # This ensures we don't exceed max row limit
+            try:
+                retention = _get_retention_service()
+                if retention:
+                    retention.cleanup_on_buffer_flush()
+            except Exception as cleanup_error:
+                logger.debug(f"Retention cleanup skipped: {cleanup_error}")
 
         except Exception as e:
             logger.error(f"Error saving Buffer {buffer_name} to database: {e}", exc_info=True)

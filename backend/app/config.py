@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     # Configuration Access PIN
     config_pin: str = "1234"
 
+    # Data Retention Settings (Time-based FIFO cleanup)
+    data_retention_days: int = 90         # Keep last 90 days (3 months) of data
+    data_retention_max_rows: int = 5000000  # Safety limit - max rows in database
+    cleanup_hour: int = 2                 # Daily cleanup runs at this hour (24-hour format)
+
     class Config:
         # Look for .env file in parent directory (backend folder)
         env_file = os.path.join(os.path.dirname(__file__), "..", ".env")
