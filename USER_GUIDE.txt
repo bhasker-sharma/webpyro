@@ -24,7 +24,9 @@ NOTE:- These are already configured on the CPU supplied with the system
 STEP 1: Install PostgreSQL
    - Download from: https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
    - Remember your password during installation!
-
+ 
+ ****************Or if you do not understand how to install it folow these steps :- https://www.w3schools.com/postgresql/postgresql_install.php*****************
+ 
 STEP 2: Create Database
    - Open "pgAdmin 4" (installed with PostgreSQL)
    - Right-click "Databases" → Create → Database
