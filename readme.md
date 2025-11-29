@@ -209,7 +209,7 @@ webpyro/
 
 **Package size:**
 - Minimal (Python HTTP server): ~200MB
-- Standard (Vite preview): ~300MB
+- Standard (Vite preview): ~300MB.
 
 ---
 
