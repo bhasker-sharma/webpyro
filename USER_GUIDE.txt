@@ -12,20 +12,17 @@ REQUIRED:
 3. Python 3.11 or later (for serving frontend only)
    Download: https://www.python.org/downloads/
    IMPORTANT: Check "Add Python to PATH" during installation!
-
-RECOMMENDED:
-- Minimum 4GB RAM
-- 500MB free disk space
-- Network connection (for local network access)
-
-Note: Backend is pre-compiled - No additional Python packages needed!
+4. The IRQ Pyrometer should have the baud rate of 9600 and same should be in the software and the device id should be in the range of  1-16. 
 
 
-QUICK START (5 MINUTES):
------------------------
+
+
+Installation steps. (5 MINUTES):
+NOTE:- These are already configured on the CPU supplied with the system
+-----------------------------------------------------------------------
 
 STEP 1: Install PostgreSQL
-   - Download from: https://www.postgresql.org/download/
+   - Download from: https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
    - Remember your password during installation!
 
 STEP 2: Create Database
@@ -80,21 +77,6 @@ STOPPING THE APPLICATION:
    - Close both server windows manually
 
 
-FOLDER STRUCTURE:
-----------------
-WebPyrometer/
-├── webpyro_backend/              ← Backend executable (DO NOT MODIFY)
-│   ├── webpyro_backend.exe       ← Main program
-│   ├── _internal/                ← Required libraries
-│   └── .env                      ← YOUR configuration (EDIT THIS)
-│
-├── frontend/dist/                ← Web interface files
-│
-├── PRODUCTION-START-MINIMAL.bat  ← START HERE (daily use)
-├── PRODUCTION-STOP.bat           ← Stop servers
-├── configure-firewall.bat        ← Run once as Admin
-└── USER_GUIDE.txt                ← This file
-
 
 CONFIGURATION:
 -------------
@@ -111,12 +93,12 @@ DEVICE SETUP:
 1. Start the application
 2. Open in browser: http://localhost
 3. Click "Configure Devices"
-4. Enter CONFIG_PIN (from .env file)
-5. Add your Modbus devices with:
+4. Enter CONFIG_PIN 
+5. Add your IRQ Pyrometers with:
    - Device name
    - Slave ID (Modbus address)
    - COM port (check Device Manager)
-   - Baud rate (match your device)
+   - Baud rate (match your IRQ pyrometers)
 6. Enable devices
 7. Save configuration
 

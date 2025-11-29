@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { getDeviceColor } from '../utils/graphColors';
 
 function GraphSection({ devices, devicesWithReadings }) {
-    const [timeRange, setTimeRange] = useState(10); // Default 10 minutes
+    const [timeRange, setTimeRange] = useState(1); // Default 1 minute
     const [graphData, setGraphData] = useState([]);
     const [currentTime, setCurrentTime] = useState(Date.now()); // Track current time for sliding window
     const dataBufferRef = useRef(new Map());

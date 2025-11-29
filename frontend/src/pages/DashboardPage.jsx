@@ -457,9 +457,6 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
                         {status}
                     </span>
                 </div>
-                <div className="text-[10px] text-gray-500 text-center truncate">
-                    {timeAgo}
-                </div>
             </div>
         </div>
     );
