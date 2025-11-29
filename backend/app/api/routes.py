@@ -10,6 +10,7 @@ from sqlalchemy import text
 from app.models.device import DeviceSettings, DeviceReading
 from datetime import datetime, timedelta, timezone
 from app.services.reading_service import ReadingService
+from app.utils.datetime_utils import utc_now, ensure_utc, to_iso_utc, parse_iso_utc, utc_to_ist
 from fastapi.responses import StreamingResponse
 from app.config import get_settings
 from pydantic import BaseModel
@@ -188,8 +189,8 @@ async def health_check(db: Session = Depends(get_db)):
         "status": system_status,
         "database": db_status,
         "database_details": db_details,
-        "modbus": "not initialized yet", 
-        "timestamp": datetime.utcnow().isoformat()
+        "modbus": "not initialized yet",
+        "timestamp": to_iso_utc(utc_now())
     }
 
 
@@ -264,7 +265,7 @@ async def get_readings_for_device(
             'ambient_temp': reading.ambient_temp,  # Include ambient temperature
             'status': reading.status,
             'raw_hex': reading.raw_hex,
-            'timestamp': reading.ts_utc.isoformat()
+            'timestamp': to_iso_utc(reading.ts_utc)
         })
     return result
 
@@ -303,10 +304,7 @@ async def get_filtered_readings(
     if start_date:
         try:
             # Parse datetime string (frontend sends UTC time from user's local timezone)
-            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-            # Make timezone-aware if not already
-            if start_dt.tzinfo is None:
-                start_dt = start_dt.replace(tzinfo=timezone.utc)
+            start_dt = parse_iso_utc(start_date)
             logger.info(f"Filter start_date: {start_date} -> {start_dt} UTC")
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid start_date format: {e}")
@@ -314,10 +312,7 @@ async def get_filtered_readings(
     if end_date:
         try:
             # Parse datetime string (frontend sends UTC time from user's local timezone)
-            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-            # Make timezone-aware if not already
-            if end_dt.tzinfo is None:
-                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            end_dt = parse_iso_utc(end_date)
             logger.info(f"Filter end_date: {end_date} -> {end_dt} UTC")
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid end_date format: {e}")
@@ -344,8 +339,8 @@ async def get_filtered_readings(
             'ambient_temp': reading.ambient_temp,  # Include ambient temperature
             'status': reading.status,
             'raw_hex': reading.raw_hex,
-            'timestamp': reading.ts_utc.isoformat(),
-            'created_at': reading.created_at.isoformat() if reading.created_at else None
+            'timestamp': to_iso_utc(reading.ts_utc),
+            'created_at': to_iso_utc(reading.created_at) if reading.created_at else None
         })
 
     return {
@@ -375,20 +370,14 @@ async def export_readings_csv(
     if start_date:
         try:
             # Parse datetime string (frontend sends UTC time from user's local timezone)
-            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-            # Make timezone-aware if not already
-            if start_dt.tzinfo is None:
-                start_dt = start_dt.replace(tzinfo=timezone.utc)
+            start_dt = parse_iso_utc(start_date)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid start_date format")
 
     if end_date:
         try:
             # Parse datetime string (frontend sends UTC time from user's local timezone)
-            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-            # Make timezone-aware if not already
-            if end_dt.tzinfo is None:
-                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            end_dt = parse_iso_utc(end_date)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid end_date format")
 
@@ -416,14 +405,16 @@ async def export_readings_csv(
     # Row 2: Total data points
     writer.writerow([f"Total Data Points: {len(readings)}"])
 
-    # Row 3: Date range (display in UTC)
+    # Row 3: Date range (display in IST to match frontend preview)
     if start_dt:
-        start_date_str = start_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+        start_ist = utc_to_ist(start_dt)
+        start_date_str = start_ist.strftime("%Y-%m-%d %H:%M:%S IST")
     else:
         start_date_str = "Beginning"
 
     if end_dt:
-        end_date_str = end_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+        end_ist = utc_to_ist(end_dt)
+        end_date_str = end_ist.strftime("%Y-%m-%d %H:%M:%S IST")
     else:
         end_date_str = "End"
 
@@ -432,15 +423,15 @@ async def export_readings_csv(
     # Row 4: Empty row
     writer.writerow([])
 
-    # Row 5: Column headers
-    writer.writerow(['Serial Number', 'Database ID', 'Date (UTC)', 'Time (UTC)', 'Temperature', 'Ambient Temp', 'Status'])
+    # Row 5: Column headers (IST to match frontend preview)
+    writer.writerow(['Serial Number', 'Database ID', 'Date (IST)', 'Time (IST)', 'Temperature', 'Ambient Temp', 'Status'])
 
     # Write data rows
     for idx, reading in enumerate(readings, start=1):
-        # Use UTC timestamp directly
-        utc_dt = reading.ts_utc
-        date_str = utc_dt.strftime("%Y-%m-%d")
-        time_str = utc_dt.strftime("%H:%M:%S")
+        # Convert UTC timestamp to IST (to match what user sees in preview)
+        ist_dt = utc_to_ist(reading.ts_utc)
+        date_str = ist_dt.strftime("%Y-%m-%d")
+        time_str = ist_dt.strftime("%H:%M:%S")
 
         writer.writerow([
             idx,  # Serial number starting from 1
@@ -455,8 +446,9 @@ async def export_readings_csv(
     # Prepare response
     output.seek(0)
 
-    # Filename with device name and timestamp
-    filename = f"{device_name}_readings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    # Filename with device name and IST timestamp (to match user's timezone)
+    filename_time = utc_to_ist(utc_now())
+    filename = f"{device_name}_readings_{filename_time.strftime('%Y%m%d_%H%M%S')}.csv"
 
     return StreamingResponse(
         iter([output.getvalue()]),
@@ -486,7 +478,7 @@ async def debug_readings(db: Session = Depends(get_db)):
                 "device_name": reading.device_name,
                 "temperature": reading.value,
                 "status": reading.status,
-                "timestamp": reading.ts_utc.isoformat()
+                "timestamp": to_iso_utc(reading.ts_utc)
             })
 
         return result

@@ -11,6 +11,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.database import SessionLocal
 from app.models.device import DeviceReading
 from app.config import get_settings
+from app.utils.datetime_utils import utc_now, to_iso_utc
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -82,13 +83,13 @@ class DataRetentionService:
         """
         logger.info("=" * 80)
         logger.info("DAILY DATA CLEANUP STARTED (Time-based FIFO)")
-        logger.info(f"Timestamp: {datetime.now()}")
+        logger.info(f"Timestamp: {utc_now()}")
         logger.info("=" * 80)
 
         db = SessionLocal()
         try:
             # Calculate cutoff date (FIFO: delete oldest first)
-            cutoff_date = datetime.now() - timedelta(days=self.retention_days)
+            cutoff_date = utc_now() - timedelta(days=self.retention_days)
             logger.info(f"Retention period: {self.retention_days} days")
             logger.info(f"Cutoff date: {cutoff_date}")
             logger.info(f"Deleting all data OLDER than: {cutoff_date}")
@@ -243,8 +244,8 @@ class DataRetentionService:
                 'retention_days': self.retention_days,
                 'max_rows': self.max_rows,
                 'current_rows': total_rows,
-                'oldest_record': oldest.ts_utc.isoformat() if oldest else None,
-                'newest_record': newest.ts_utc.isoformat() if newest else None,
+                'oldest_record': to_iso_utc(oldest.ts_utc) if oldest else None,
+                'newest_record': to_iso_utc(newest.ts_utc) if newest else None,
                 'data_span_days': data_span_days,
                 'cleanup_hour': self.cleanup_hour
             }

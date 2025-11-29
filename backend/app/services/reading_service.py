@@ -9,6 +9,7 @@ from typing import List, Optional, Dict
 from datetime import timezone, datetime, timedelta
 
 from app.models.device import DeviceReading, DeviceSettings
+from app.utils.datetime_utils import utc_now, to_iso_utc, ensure_utc
 
 
 class ReadingService:
@@ -49,7 +50,7 @@ class ReadingService:
                     'temperature': latest_reading.value,
                     'status': latest_reading.status,
                     'raw_hex': latest_reading.raw_hex,
-                    'timestamp': latest_reading.ts_utc.isoformat(),
+                    'timestamp': to_iso_utc(latest_reading.ts_utc),
                     'time_ago': ReadingService._time_ago(latest_reading.ts_utc)
                 }
             
@@ -136,7 +137,7 @@ class ReadingService:
             # Return UTC timestamp (frontend will convert to user's local time)
             latest_timestamp_utc = None
             if latest:
-                latest_timestamp_utc = latest.ts_utc.isoformat()
+                latest_timestamp_utc = to_iso_utc(latest.ts_utc)
 
             device_stats.append({
                 'device_id': device.id,
@@ -180,11 +181,10 @@ class ReadingService:
         Returns:
             String like "2 seconds ago", "5 minutes ago"
         """
-        now = datetime.now(timezone.utc)
+        now = utc_now()
 
         # Make timestamp timezone-aware if it's naive
-        if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        timestamp = ensure_utc(timestamp)
 
         diff = now - timestamp
         
