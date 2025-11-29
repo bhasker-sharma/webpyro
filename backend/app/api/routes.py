@@ -456,6 +456,231 @@ async def export_readings_csv(
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
+@router.get("/reading/export/pdf")
+async def export_readings_pdf(
+    device_id: int,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Export filtered readings as PDF file
+
+    Query Parameters:
+        - device_id: Device ID to filter readings
+        - start_date: Start datetime in ISO format
+        - end_date: End datetime in ISO format
+    """
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    import os
+
+    # Parse datetime strings if provided
+    start_dt = None
+    end_dt = None
+
+    if start_date:
+        try:
+            start_dt = parse_iso_utc(start_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format")
+
+    if end_date:
+        try:
+            end_dt = parse_iso_utc(end_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format")
+
+    # Get filtered readings (no limit for export)
+    readings = ReadingService.get_device_readings(
+        db=db,
+        device_id=device_id,
+        limit=None,
+        start_date=start_dt,
+        end_date=end_dt
+    )
+
+    # Get device name
+    device = db.query(DeviceSettings).filter(DeviceSettings.id == device_id).first()
+    device_name = device.name if device else f"Device {device_id}"
+
+    # Create PDF in memory
+    pdf_buffer = io.BytesIO()
+
+    # Get logo path
+    logo_path = os.path.join(os.path.dirname(__file__), '..', 'static', 'logo.png')
+    logo_exists = os.path.exists(logo_path)
+
+    # Define custom header function for every page
+    def add_header_and_border(canvas, doc):
+        """Add header with logos on every page"""
+        canvas.saveState()
+
+        # Page dimensions (Portrait mode)
+        page_width, page_height = A4
+
+        # Header elements
+        header_y = page_height - 40  # Position from top
+
+        # Left logo (small)
+        if logo_exists:
+            try:
+                canvas.drawImage(
+                    logo_path,
+                    x=30,
+                    y=header_y - 10,
+                    width=0.35*inch,
+                    height=0.35*inch,
+                    preserveAspectRatio=True,
+                    mask='auto'
+                )
+            except:
+                pass
+
+        # "TIPL" text next to left logo
+        canvas.setFont('Helvetica-Bold', 12)
+        canvas.setFillColor(colors.HexColor('#1f2937'))
+        canvas.drawString(30 + 0.4*inch, header_y, "TIPL")
+
+        # Center text: "Temperature Data Report - Device X"
+        canvas.setFont('Helvetica-Bold', 12)
+        canvas.setFillColor(colors.HexColor('#3b82f6'))
+        header_text = f"Temperature Data Report - {device_name}"
+        text_width = canvas.stringWidth(header_text, 'Helvetica-Bold', 12)
+        canvas.drawString((page_width - text_width) / 2, header_y, header_text)
+
+        # Right logo (small)
+        # if logo_exists:
+        #     try:
+        #         canvas.drawImage(
+        #             logo_path,
+        #             x=page_width - 30 - 0.35*inch,
+        #             y=header_y - 10,
+        #             width=0.35*inch,
+        #             height=0.35*inch,
+        #             preserveAspectRatio=True,
+        #             mask='auto'
+        #         )
+        #     except:
+        #         pass
+
+        # Draw BLACK line below header to separate it - FULL WIDTH (edge to edge)
+        canvas.setStrokeColor(colors.black)
+        canvas.setLineWidth(1.5)
+        canvas.line(0, header_y - 20, page_width, header_y - 20)
+
+        # Page number at bottom
+        canvas.setFont('Helvetica', 9)
+        canvas.setFillColor(colors.gray)
+        page_num_text = f"Page {doc.page}"
+        canvas.drawCentredString(page_width / 2, 25, page_num_text)
+
+        canvas.restoreState()
+
+    # Create PDF document (Portrait mode)
+    doc = SimpleDocTemplate(
+        pdf_buffer,
+        pagesize=A4,
+        rightMargin=30,
+        leftMargin=30,
+        topMargin=60,
+        bottomMargin=35,
+    )
+
+    # Container for PDF elements
+    elements = []
+
+    # Styles
+    styles = getSampleStyleSheet()
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#6b7280'),
+        spaceAfter=12,
+        alignment=TA_CENTER
+    )
+
+    # Date range subtitle (IST to match frontend)
+    if start_dt and end_dt:
+        start_ist = utc_to_ist(start_dt)
+        end_ist = utc_to_ist(end_dt)
+        date_range = f"{start_ist.strftime('%d/%m/%Y %H:%M')} to {end_ist.strftime('%d/%m/%Y %H:%M')} (IST)"
+    else:
+        date_range = "All Records"
+
+    subtitle = Paragraph(f"<b>Period:</b> {date_range} | <b>Total Records:</b> {len(readings)}", subtitle_style)
+    elements.append(subtitle)
+    elements.append(Spacer(1, 0.2*inch))
+
+    # Table data
+    table_data = [
+        ['S.No', 'Date (IST)', 'Time (IST)', 'Temperature (°C)', 'Ambient Temp (°C)', 'Status']
+    ]
+
+    for idx, reading in enumerate(readings, start=1):
+        # Convert UTC timestamp to IST
+        ist_dt = utc_to_ist(reading.ts_utc)
+        date_str = ist_dt.strftime("%d/%m/%Y")
+        time_str = ist_dt.strftime("%H:%M:%S")
+
+        ambient_temp_str = f"{reading.ambient_temp:.1f}" if reading.ambient_temp is not None else 'N/A'
+
+        table_data.append([
+            str(idx),
+            date_str,
+            time_str,
+            f"{reading.value:.1f}",
+            ambient_temp_str,
+            reading.status
+        ])
+
+    # Create table (expanded widths to prevent text overlap)
+    table = Table(table_data, colWidths=[0.6*inch, 1.1*inch, 1.0*inch, 1.4*inch, 1.4*inch, 0.8*inch])
+
+    # Table style
+    table.setStyle(TableStyle([
+        # Header row
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+
+        # Data rows
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')]),
+
+        # Status column color coding
+        ('TEXTCOLOR', (5, 1), (5, -1), colors.HexColor('#059669')),  # Green for OK status
+    ]))
+
+    elements.append(table)
+
+    # Build PDF with custom header and border on every page
+    doc.build(elements, onFirstPage=add_header_and_border, onLaterPages=add_header_and_border)
+
+    # Prepare response
+    pdf_buffer.seek(0)
+
+    # Filename with device name and IST timestamp
+    filename_time = utc_to_ist(utc_now())
+    filename = f"{device_name}_report_{filename_time.strftime('%Y%m%d_%H%M%S')}.pdf"
+
+    return StreamingResponse(
+        iter([pdf_buffer.getvalue()]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 @router.get("/debug/readings")
 async def debug_readings(db: Session = Depends(get_db)):
     """
