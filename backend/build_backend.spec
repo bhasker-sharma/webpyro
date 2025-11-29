@@ -11,7 +11,9 @@ a = Analysis(
         # Include .env files for configuration
         ('.env', '.'),
         ('.env.production', '.'),
-        # NOTE: 'app' package is automatically compiled into .exe - NOT included as source!
+        # Include static files (logo for PDF reports)
+        ('app/static', 'app/static'),
+        # NOTE: 'app' package Python code is automatically compiled into .exe - NOT included as source!
     ],
     hiddenimports=[
         'uvicorn.logging',
