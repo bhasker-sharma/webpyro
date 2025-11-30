@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     Application configuration settings.
     Loads values from .env file.
     """
-    app_name: str = "Modbus Temperature Monitor"
+    app_name: str = "Multi temprature monitor"
     debug: bool = True
     database_url: str
     
@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     data_retention_days: float = 90       # Keep last 90 days (3 months) of data - supports decimals (e.g., 0.0833 = 2 hours)
     data_retention_max_rows: int = 5000000  # Safety limit - max rows in database
     cleanup_hour: int = 2                 # Daily cleanup runs at this hour (24-hour format)
+
+    # Log File Retention Settings (Time-based cleanup)
+    log_retention_days: float = 30.0      # Keep last 30 days of log files - supports decimals (e.g., 7.0 = 1 week)
+    log_cleanup_hour: int = 3             # Log file cleanup runs at this hour (24-hour format, runs after data cleanup)
 
     class Config:
         # Look for .env file in parent directory (backend folder)

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ConfigModal from '../components/ConfigModal';
 import GraphSection from '../components/GraphSection';
-import { deviceAPI, readingAPI, pollingAPI, configAPI } from '../services/api';
+import { deviceAPI, readingAPI, pollingAPI, configAPI, uptimeAPI } from '../services/api';
 import { websocketService } from '../services/websocket';
 
 function DashboardPage({ configModalOpen, setConfigModalOpen }) {
@@ -9,6 +9,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     const [allDevices, setAllDevices] = useState([]); // All devices for modal
     const [devicesWithReadings, setDevicesWithReadings] = useState([]); // Devices enriched with latest readings
     const [pollingStats, setPollingStats] = useState(null);
+    const [uptime, setUptime] = useState(null); // App uptime
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [wsConnected, setWsConnected] = useState(false); // WebSocket connection state
@@ -17,6 +18,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
         console.log('Dashboard mounted');
         fetchDevices();
         fetchPollingStats();
+        fetchUptime();
         // Note: We do NOT fetch readings from database on mount
         // Readings will only come from WebSocket
 
@@ -139,6 +141,16 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
             setPollingStats(stats);
         } catch (err) {
             console.error('Error fetching polling stats:', err);
+        }
+    };
+
+    const fetchUptime = async () => {
+        try {
+            const uptimeData = await uptimeAPI.getUptime();
+            console.log('Uptime data:', uptimeData);
+            setUptime(uptimeData.up_from);
+        } catch (err) {
+            console.error('Error fetching uptime:', err);
         }
     };
 
@@ -278,14 +290,17 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                                     <span className={`w-2 h-2 rounded-full ${pollingStats.is_running ? 'bg-blue-500 animate-pulse' : 'bg-gray-500'}`}></span>
                                     <span className="text-gray-600">Polling: {pollingStats.is_running ? 'Active' : 'Stopped'}</span>
                                 </div>
-                                <div className="text-gray-600">
+                                {/* <div className="text-gray-600">
                                     Cycle: <span className="font-semibold text-gray-800">{pollingStats.cycle_count}</span>
-                                </div>
+                                </div> */}
                                 <div className="text-gray-600">
                                     Buffer: <span className="font-semibold text-gray-800">{pollingStats.buffer_stats?.buffer_a_size + pollingStats.buffer_stats?.buffer_b_size || 0}</span>/{pollingStats.buffer_stats?.max_size || 100}
                                 </div>
-                                <div className="text-gray-600">
+                                {/* <div className="text-gray-600">
                                     Saved: <span className="font-semibold text-gray-800">{pollingStats.buffer_stats?.total_saved || 0}</span>
+                                </div> */}
+                                <div className="text-gray-600">
+                                    Up From: <span className="font-semibold text-gray-800">{uptime || 'Loading...'}</span>
                                 </div>
                             </div>
                             <div className="text-xs text-gray-500">

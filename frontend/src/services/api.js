@@ -114,6 +114,20 @@ export const pollingAPI = {
 };
 
 // ============================================================================
+// UPTIME API FUNCTIONS
+// ============================================================================
+
+export const uptimeAPI = {
+    /**
+     * Get application uptime information
+     */
+    getUptime: async () => {
+        const response = await api.get('/uptime');
+        return response.data;
+    },
+};
+
+// ============================================================================
 // CONFIG API FUNCTIONS
 // ============================================================================
 

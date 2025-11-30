@@ -4,21 +4,29 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
 import traceback
+from datetime import datetime
 
 from app.config import get_settings
 from app.api.routes import router as api_router
 from app.database import test_connection, create_tables
 from app.services.polling_service import polling_service
 from app.services.data_retention_service import retention_service
+from app.services.log_retention_service import LogRetentionService
 from app.logging_config import setup_logging  # Import centralized logging
 
 # Initialize centralized logging system
 log_dir = setup_logging()
 
+# Initialize log retention service
+log_retention_service = LogRetentionService(log_dir)
+
 # Get logger for main module
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
+
+# Track app startup time (for "Up From" timestamp in frontend)
+APP_STARTUP_TIME = datetime.now()
 
 
 # Lifespan context manager for startup/shutdown events
@@ -70,6 +78,17 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to start retention service: {e}", exc_info=True)
         print(f"Failed to start retention service: {e}", exc_info=True)
 
+    # Start log retention service
+    logger.info("Starting log retention service...")
+
+    try:
+        await log_retention_service.start()
+        logger.info("Log retention service started successfully!")
+        print("---------log retention service started--------")
+    except Exception as e:
+        logger.error(f"Failed to start log retention service: {e}", exc_info=True)
+        print(f"Failed to start log retention service: {e}", exc_info=True)
+
 
     yield  # Application runs here
 
@@ -78,6 +97,14 @@ async def lifespan(app: FastAPI):
     logger.info("SHUTTING DOWN SERVER...")
     print("SHUTTING DOWN SERVER...")
     logger.info("=" * 80)
+
+    # Stop log retention service
+    logger.info("Stopping log retention service...")
+    try:
+        await log_retention_service.stop()
+        logger.info("Log retention service stopped successfully!")
+    except Exception as e:
+        logger.error(f"Error stopping log retention service: {e}", exc_info=True)
 
     # Stop data retention service
     logger.info("Stopping data retention service...")

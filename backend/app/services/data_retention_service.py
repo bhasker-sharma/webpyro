@@ -2,18 +2,20 @@
 Data Retention Service
 Implements FIFO-based cleanup for rolling 3-month window
 Automatically deletes data older than specified retention period
+✨ Detects manual time changes - checks actual computer time every minute!
 """
 
 import logging
+import asyncio
 from datetime import datetime, timedelta
 from sqlalchemy import text
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.database import SessionLocal
 from app.models.device import DeviceReading
 from app.config import get_settings
 from app.utils.datetime_utils import utc_now, to_iso_utc
 
-logger = logging.getLogger(__name__)
+# Use dedicated retention logger (logs to retention.log)
+logger = logging.getLogger('app.services.retention')
 settings = get_settings()
 
 
@@ -21,22 +23,26 @@ class DataRetentionService:
     """
     Manages data retention and cleanup using FIFO principle
     Keeps only last N days of data (configurable, default 90 days = 3 months)
+
+    ✨ Uses time-checking loop instead of scheduler - detects manual time changes!
     """
 
     def __init__(self):
         self.retention_days = settings.data_retention_days
         self.max_rows = settings.data_retention_max_rows
         self.cleanup_hour = settings.cleanup_hour
-        self.scheduler = AsyncIOScheduler()
         self.is_running = False
+        self.cleanup_task = None
+        self.last_cleanup_date = None  # Track which date we last ran cleanup
 
         logger.info(f"Data Retention Service initialized:")
         logger.info(f"  - Retention period: {self.retention_days} days")
         logger.info(f"  - Max rows limit: {self.max_rows:,}")
         logger.info(f"  - Daily cleanup at: {self.cleanup_hour}:00")
+        logger.info(f"  ✨ Time-check mode: detects manual time changes!")
 
     async def start(self):
-        """Start scheduled cleanup job"""
+        """Start time-checking loop"""
         if self.is_running:
             logger.warning("Data retention service already running")
             return
@@ -45,53 +51,96 @@ class DataRetentionService:
         logger.info("DATA RETENTION SERVICE STARTING...")
         logger.info("=" * 60)
 
-        # Schedule daily cleanup
-        self.scheduler.add_job(
-            self.daily_cleanup,
-            'cron',
-            hour=self.cleanup_hour,
-            minute=0,
-            id='daily_cleanup',
-            name='Daily Data Cleanup (Time-based FIFO)'
-        )
-
-        self.scheduler.start()
         self.is_running = True
 
-        logger.info(f"Scheduled daily cleanup at {self.cleanup_hour}:00 AM")
+        # Start background task that checks time every minute
+        self.cleanup_task = asyncio.create_task(self._time_check_loop())
+
+        logger.info(f"Will run cleanup at {self.cleanup_hour}:00 every day")
+        logger.info("✨ Checking actual computer time every minute")
         logger.info("Data retention service started successfully")
         logger.info("=" * 60)
 
     async def stop(self):
-        """Stop scheduled cleanup job"""
+        """Stop time-checking loop"""
         if not self.is_running:
             return
 
         logger.info("Stopping data retention service...")
 
-        if self.scheduler.running:
-            self.scheduler.shutdown()
-
         self.is_running = False
+        if self.cleanup_task:
+            self.cleanup_task.cancel()
+            try:
+                await self.cleanup_task
+            except asyncio.CancelledError:
+                pass
+
         logger.info("Data retention service stopped")
+
+    async def _time_check_loop(self):
+        """
+        Background loop that checks actual computer time every minute
+        Runs cleanup when time matches cleanup_hour
+        ✨ This detects manual time changes!
+        """
+        logger.info("Time-check loop started - checking every 60 seconds")
+
+        while self.is_running:
+            try:
+                # Check current time
+                now = datetime.now()
+                current_hour = now.hour
+                current_date = now.strftime("%Y-%m-%d")
+
+                # Should we run cleanup?
+                # Run if:
+                # 1. Current hour matches cleanup hour
+                # 2. We haven't run yet today (last_cleanup_date != today)
+                if current_hour == self.cleanup_hour and self.last_cleanup_date != current_date:
+                    logger.info(f"⏰ Time check: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+                    logger.info(f"✅ Match! Hour={current_hour}, Target={self.cleanup_hour}")
+                    logger.info("Triggering cleanup...")
+
+                    # Run cleanup
+                    await self.daily_cleanup()
+
+                    # Mark that we ran cleanup for this date
+                    self.last_cleanup_date = current_date
+                    logger.info(f"Cleanup done. Next cleanup: tomorrow at {self.cleanup_hour}:00")
+
+                # Wait 60 seconds before checking again
+                await asyncio.sleep(60)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error in time-check loop: {e}", exc_info=True)
+                await asyncio.sleep(60)  # Wait before retrying
 
     async def daily_cleanup(self):
         """
         Daily cleanup job - deletes data older than retention_days
         Implements FIFO: First In, First Out (oldest data deleted first)
-        Runs at configured hour (default 2 AM)
+        Can be called manually or by time-check loop
+
+        ✨ Uses system time (datetime.now()) for all calculations!
         """
         logger.info("=" * 80)
         logger.info("DAILY DATA CLEANUP STARTED (Time-based FIFO)")
-        logger.info(f"Timestamp: {utc_now()}")
+        logger.info(f"Timestamp: {datetime.now()}")
         logger.info("=" * 80)
 
         db = SessionLocal()
         try:
             # Calculate cutoff date (FIFO: delete oldest first)
-            cutoff_date = utc_now() - timedelta(days=self.retention_days)
+            # ✨ Uses datetime.now(timezone.utc) which:
+            #    - Uses SYSTEM clock (responds to manual time changes!)
+            #    - Converts to UTC (matches database ts_utc column)
+            from datetime import timezone
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
             logger.info(f"Retention period: {self.retention_days} days")
-            logger.info(f"Cutoff date: {cutoff_date}")
+            logger.info(f"Cutoff date (UTC): {cutoff_date}")
             logger.info(f"Deleting all data OLDER than: {cutoff_date}")
 
             # Count total rows before cleanup
@@ -247,7 +296,8 @@ class DataRetentionService:
                 'oldest_record': to_iso_utc(oldest.ts_utc) if oldest else None,
                 'newest_record': to_iso_utc(newest.ts_utc) if newest else None,
                 'data_span_days': data_span_days,
-                'cleanup_hour': self.cleanup_hour
+                'cleanup_hour': self.cleanup_hour,
+                'last_cleanup_date': self.last_cleanup_date
             }
 
         except Exception as e:

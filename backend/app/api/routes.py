@@ -202,6 +202,19 @@ async def test_endpoint():
         "note": "Use /api/devices to manage devices"
     }
 
+@router.get("/uptime")
+async def get_uptime():
+    """
+    Get application uptime information
+    Returns the timestamp when the backend server was started
+    """
+    import main
+    return {
+        "up_from": main.APP_STARTUP_TIME.strftime('%d-%m-%Y %H:%M:%S'),
+        "up_from_iso": main.APP_STARTUP_TIME.isoformat(),
+        "timestamp": to_iso_utc(utc_now())
+    }
+
 @router.get("/polling/stats")
 async def get_polling_stats():
     """
