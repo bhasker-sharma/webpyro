@@ -1,0 +1,537 @@
+================================================================================
+                    MULTI TEMPERATURE MONITOR - INSTALLATION GUIDE
+                    For Engineers & Technical Personnel
+                  Toshniwal Industries Private Limited
+================================================================================
+
+This guide is for first-time installation and setup of the MULTI TEMPERATURE Monitor
+software on a new computer. This is a ONE-TIME setup process.
+
+After installation, refer to USER_GUIDE.txt for daily operation instructions.
+
+================================================================================
+SYSTEM REQUIREMENTS
+================================================================================
+
+HARDWARE REQUIREMENTS:
+- Windows 10/11 (64-bit)
+- Minimum 4GB RAM (8GB recommended)
+- 10GB free disk space
+- RS485 to USB converter (for IRQ Pyrometer communication)
+- Network adapter (for multi-computer access)
+
+SOFTWARE REQUIREMENTS:
+1. PostgreSQL 14 or later (Database server)
+2. Python 3.11 or later (for frontend server)
+3. Administrator rights (for port 80 configuration)
+
+IMPORTANT: The IRQ Pyrometer devices should be configured with:
+- Baud rate: 9600 (default)
+- Device ID: 1-16 (unique for each device)
+- RS485 communication enabled
+
+================================================================================
+INSTALLATION STEPS
+================================================================================
+
+STEP 1: INSTALL POSTGRESQL DATABASE
+------------------------------------
+
+1.1. Download PostgreSQL:
+     - Visit: https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
+     - Download PostgreSQL 14 or later (Windows x86-64)
+     - File size: ~300MB
+
+1.2. Run the PostgreSQL Installer:
+     - Double-click the downloaded .exe file
+     - Click "Next" through the welcome screens
+
+1.3. Choose Installation Directory:
+     - Default: C:\Program Files\PostgreSQL\14
+     - Click "Next"
+
+1.4. Select Components:
+     - Keep all components checked:
+       ✓ PostgreSQL Server
+       ✓ pgAdmin 4 (GUI tool)
+       ✓ Stack Builder
+       ✓ Command Line Tools
+     - Click "Next"
+
+1.5. Choose Data Directory:
+     - Default: C:\Program Files\PostgreSQL\14\data
+     - Click "Next"
+
+1.6. Set Superuser Password:
+     ⚠️ IMPORTANT: Remember this password!
+     - Enter a strong password (e.g., admin@123)
+     - Re-enter to confirm
+     - Write it down securely
+     - Click "Next"
+
+1.7. Set Port:
+     - Default: 5432
+     - Leave as default unless port is already in use
+     - Click "Next"
+
+1.8. Choose Locale:
+     - Default: [Default locale]
+     - Click "Next"
+
+1.9. Complete Installation:
+     - Review settings
+     - Click "Next" to begin installation
+     - Wait 5-10 minutes for installation
+     - Uncheck "Stack Builder" at the end
+     - Click "Finish"
+
+1.10. Verify PostgreSQL is Running:
+     - Open Windows Services (services.msc)
+     - Look for "postgresql-x64-14"
+     - Status should be "Running"
+     - Startup Type should be "Automatic"
+
+TROUBLESHOOTING:
+- If port 5432 is in use, choose a different port (e.g., 5433)
+- Make sure Windows Firewall allows PostgreSQL
+
+================================================================================
+STEP 2: CREATE DATABASE
+================================================================================
+
+2.1. Open pgAdmin 4:
+     - Start Menu → PostgreSQL 14 → pgAdmin 4
+     - Wait for browser window to open
+
+2.2. Connect to Server:
+     - In left panel, expand "Servers"
+     - Right-click "PostgreSQL 14" → Connect Server
+     - Enter the password you set in Step 1.6
+     - Click "OK"
+
+2.3. Create Database:
+     - Right-click "Databases" → Create → Database
+     - Database name: modbus_monitor
+     - Owner: postgres
+     - Click "Save"
+
+2.4. Verify Database Created:
+     - Expand "Databases" in left panel
+     - You should see "modbus_monitor" listed
+     - Database is ready!
+
+TROUBLESHOOTING:
+- If you can't connect, verify PostgreSQL service is running
+- Check that you're using the correct password
+- Try using "postgres" as username
+
+================================================================================
+STEP 3: INSTALL PYTHON (FOR FRONTEND SERVER)
+================================================================================
+
+3.1. Download Python:
+     - Visit: https://www.python.org/downloads/
+     - Download Python 3.11 or later (Windows installer - 64-bit)
+     - File size: ~25MB
+
+3.2. Run Python Installer:
+     - Double-click the downloaded .exe file
+     - ⚠️ CRITICAL: Check "Add Python to PATH" at bottom
+     - Click "Install Now"
+     - Wait for installation (2-3 minutes)
+     - Click "Close"
+
+3.3. Verify Python Installation:
+     - Open Command Prompt (cmd)
+     - Type: python --version
+     - Should show: Python 3.11.x or later
+     - Type: pip --version
+     - Should show pip version
+
+TROUBLESHOOTING:
+- If python command not found, reinstall and check "Add to PATH"
+- Restart Command Prompt after installation
+
+================================================================================
+STEP 4: CONFIGURE BACKEND (.env FILE)
+================================================================================
+
+4.1. Locate Backend Directory:
+     - Navigate to: webpyro_backend\ folder
+     - (Or backend\dist\webpyro_backend\ if using production build)
+
+4.2. Create .env File:
+     - Look for ".env.production" file
+     - Copy it and rename the copy to ".env"
+     - Open ".env" file with Notepad
+
+4.3. Configure Database Connection:
+     Find the line:
+     DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/modbus_monitor
+
+     Replace YOUR_PASSWORD with the password you set in Step 1.6
+
+     Example:
+     DATABASE_URL=postgresql://postgres:admin@123@localhost:5432/modbus_monitor
+
+     ⚠️ NOTE: If your password contains special characters like @, encode them:
+     - @ becomes %40
+     - # becomes %23
+     - ! becomes %21
+     Example: admin@123 becomes admin%40123
+
+4.4. Set Configuration PIN:
+     Find the line:
+     CONFIG_PIN=1234
+
+     Change to your own 4-digit PIN (e.g., 9876)
+     This PIN protects device configuration from unauthorized changes
+
+4.5. Configure Data Retention (Optional):
+     DATA_RETENTION_DAYS=2          ← Database records kept (increase to 30-90 for production)
+     DATA_RETENTION_MAX_ROWS=5000000 ← Safety limit
+     LOG_RETENTION_DAYS=2.0         ← Log files kept (2 days is good for production)
+     CLEANUP_HOUR=3                 ← Daily cleanup time (3 AM)
+
+4.6. Configure Modbus Settings (Optional):
+     MODBUS_POLL_INTERVAL=20        ← How often to read devices (seconds)
+     MODBUS_TIMEOUT=1               ← Communication timeout (seconds)
+     MODBUS_REGISTER_ADDRESS=4002   ← Register to read from IRQ devices
+     MODBUS_FUNCTION_CODE=3         ← Modbus function (3 = Read Holding Registers)
+
+4.7. Save and Close:
+     - Save the .env file (Ctrl+S)
+     - Close Notepad
+
+TROUBLESHOOTING:
+- Make sure file is named ".env" not ".env.txt"
+- Windows may hide extensions - enable "File name extensions" in File Explorer
+- Database URL format must be exact (no spaces, correct encoding)
+
+================================================================================
+STEP 5: CONFIGURE WINDOWS FIREWALL
+================================================================================
+
+5.1. Locate Firewall Configuration Script:
+     - In the main webpyro folder
+     - Find: configure-firewall.bat
+
+5.2. Run as Administrator:
+     - Right-click configure-firewall.bat
+     - Select "Run as administrator"
+     - Click "Yes" when prompted by UAC
+
+5.3. Verify Firewall Rules Created:
+     - The script creates rules for:
+       * Port 80 (Frontend web server)
+       * Port 8000 (Backend API server)
+     - You should see success messages in the console
+
+5.4. Alternative Manual Configuration:
+     If script fails, configure manually:
+     - Open: Windows Defender Firewall with Advanced Security
+     - Click "Inbound Rules" → "New Rule"
+     - Rule Type: Port
+     - Protocol: TCP
+     - Specific local ports: 80,8000
+     - Action: Allow the connection
+     - Profile: All (Domain, Private, Public)
+     - Name: MULTI TEMPERATURE Monitor
+     - Click "Finish"
+
+TROUBLESHOOTING:
+- Must run as Administrator
+- If antivirus blocks, temporarily disable and try again
+- Check Windows Firewall is enabled
+
+================================================================================
+STEP 6: FIRST-TIME STARTUP & DATABASE INITIALIZATION
+================================================================================
+
+6.1. Start the Application:
+     - Navigate to main webpyro folder
+     - Right-click: PRODUCTION-START-MINIMAL.bat
+     - Select "Run as administrator" (required for port 80)
+     - Click "Yes" when prompted
+
+6.2. Watch for Startup Messages:
+     Two console windows will open:
+
+     Window 1 - Backend Server:
+     - "DATABASE CONNECTED SUCCESSFULLY"
+     - "Polling service started"
+     - "Data retention service started"
+     - "Log retention service started"
+
+     Window 2 - Frontend Server:
+     - Shows Python HTTP server
+     - "Serving HTTP on 0.0.0.0 port 80"
+
+6.3. Database Tables Auto-Created:
+     - On first run, the backend automatically creates all database tables
+     - Tables created: device_settings, device_readings, ambient_readings
+     - No manual SQL needed!
+
+6.4. Verify Startup Success:
+     - Both windows should remain open without errors
+     - Backend window shows "polling started"
+     - Frontend window shows "Serving HTTP"
+
+TROUBLESHOOTING:
+- "Port 80 already in use": Another program is using port 80 (Skype, IIS, Apache)
+  Solution: Stop the other program or run as Administrator
+- "Database connection failed": Check DATABASE_URL in .env file
+- "Port 8000 already in use": Close other instances of the backend
+
+================================================================================
+STEP 7: CONFIGURE IRQ PYROMETER DEVICES
+================================================================================
+
+7.1. Access Web Interface:
+     - Open web browser (Chrome, Edge, Firefox)
+     - Go to: http://localhost
+     - You should see "MULTI TEMPERATURE Monitor" dashboard
+
+7.2. Open Configuration Modal:
+     - Click "Configure Devices" button (top-right)
+     - Enter the CONFIG_PIN you set in Step 4.4
+     - Click "Verify PIN"
+
+7.3. Add IRQ Pyrometer Devices:
+     For each IRQ Pyrometer:
+
+     - Click "+ Add Device" button
+     - Fill in the row:
+       * Toggle: ON (enable device)
+       * Graph: Check if you want this device on graph
+       * Device Name: Location/identifier (e.g., "Furnace 1", "Zone A")
+       * Instrument ID: 1-16 (must match device's Modbus slave ID)
+       * COM Port: Select from dropdown (e.g., COM3)
+       * Baud Rate: Match device setting (default: 9600)
+       * Graph Y-Min: Minimum temperature for graph (e.g., 600)
+       * Graph Y-Max: Maximum temperature for graph (e.g., 2000)
+
+     - Repeat for all devices (maximum 16)
+
+7.4. Important Notes:
+     ⚠️ Device Names must be UNIQUE
+     ⚠️ Instrument IDs must be UNIQUE (1-16)
+     ⚠️ Instrument ID must match the slave ID set in the IRQ Pyrometer
+     ⚠️ Baud rate must match the device configuration
+
+7.5. Get COM Port Number:
+     - Open Device Manager (devmgmt.msc)
+     - Expand "Ports (COM & LPT)"
+     - Look for "USB Serial Port (COMx)" or "Prolific USB-to-Serial (COMx)"
+     - Note the COM port number (e.g., COM3)
+
+7.6. Test Device Connection:
+     - After adding devices, click "Save Configuration"
+     - Wait for "Devices saved successfully" message
+     - Polling service will restart automatically
+     - Within 20-30 seconds, you should see temperature readings
+     - If "Error" appears, check:
+       * COM port is correct
+       * Device is powered on
+       * RS485 adapter is connected
+       * Instrument ID matches device
+       * Baud rate matches device
+
+7.7. Save Configuration:
+     - Click "Save Configuration" button
+     - Confirm when prompted
+     - Devices are now permanently saved in database
+
+TROUBLESHOOTING:
+- "COM port not found": Install USB-to-RS485 driver
+- "Device not responding": Check physical connections, power, device ID
+- "Invalid PIN": Re-enter CONFIG_PIN from .env file
+- Duplicate IDs: Each device needs unique Instrument ID (1-16)
+
+================================================================================
+STEP 8: NETWORK ACCESS CONFIGURATION (OPTIONAL)
+================================================================================
+
+8.1. Find Server IP Address:
+     - Open Command Prompt
+     - Type: ipconfig
+     - Look for "IPv4 Address" under your network adapter
+     - Example: 192.168.1.100
+     - Write this down
+
+8.2. Test Local Access:
+     - On server computer, open browser
+     - Go to: http://localhost
+     - Should show dashboard with devices
+
+8.3. Test Network Access:
+     - On another computer on same network
+     - Open browser
+     - Go to: http://SERVER-IP-ADDRESS
+     - Example: http://192.168.1.100
+     - Should show same dashboard
+
+8.4. Using Computer Name:
+     - Alternative to IP address
+     - Find computer name:
+       * Right-click This PC → Properties
+       * Note "Device name" (e.g., DESKTOP-ABC123)
+     - Access from network:
+       * http://DESKTOP-ABC123
+
+TROUBLESHOOTING:
+- Can't access from network: Check firewall rules (Step 5)
+- "Connection refused": Backend server not running
+- "DNS not found" (using computer name): Use IP address instead
+- Both computers must be on same network (same WiFi/LAN)
+
+================================================================================
+STEP 9: AUTO-START ON BOOT (OPTIONAL)
+================================================================================
+
+To make the software start automatically when Windows boots:
+
+9.1. Create Startup Shortcut:
+     - Right-click: PRODUCTION-START-MINIMAL.bat
+     - Send to → Desktop (create shortcut)
+     - Cut the desktop shortcut
+
+9.2. Add to Startup Folder:
+     - Press Win+R
+     - Type: shell:startup
+     - Press Enter
+     - Paste the shortcut here
+
+9.3. Configure Shortcut to Run as Admin:
+     - Right-click the shortcut → Properties
+     - Click "Advanced" button
+     - Check "Run as administrator"
+     - Click OK → OK
+
+9.4. Test Auto-Start:
+     - Restart the computer
+     - Software should start automatically
+     - Both console windows should appear
+
+ALTERNATIVE: Windows Task Scheduler
+     - More reliable for always-on production systems
+     - Configure task to run PRODUCTION-START-MINIMAL.bat
+     - Set trigger: "At startup"
+     - Set user: SYSTEM
+     - Set privileges: "Run with highest privileges"
+
+================================================================================
+STEP 10: BACKUP & MAINTENANCE
+================================================================================
+
+10.1. Database Backup:
+      - Open pgAdmin 4
+      - Right-click "modbus_monitor" database
+      - Backup → Save to file
+      - Recommended frequency: Weekly
+
+10.2. Configuration Backup:
+      - Copy .env file to safe location
+      - Backup device settings (exported from web interface)
+
+10.3. Log Files Location:
+      - Backend logs: webpyro_backend\logs\DD-MM-YYYY\
+      - Automatic cleanup after LOG_RETENTION_DAYS (default: 2 days)
+      - Check logs for errors or issues
+
+10.4. Data Retention Monitoring:
+      - Database automatically deletes old data (default: 2 days)
+      - Adjust DATA_RETENTION_DAYS in .env if needed
+      - For production, recommend 30-90 days
+
+================================================================================
+TROUBLESHOOTING COMMON ISSUES
+================================================================================
+
+ISSUE: Backend won't start - "Database connection failed"
+SOLUTION:
+   1. Check PostgreSQL service is running (services.msc)
+   2. Verify DATABASE_URL in .env file
+   3. Ensure database "modbus_monitor" exists
+   4. Test password by logging into pgAdmin
+
+ISSUE: Frontend won't start - "Port 80 already in use"
+SOLUTION:
+   1. Close Skype (uses port 80)
+   2. Stop IIS service (if installed)
+   3. Run as Administrator
+   4. Change port in frontend server script (advanced)
+
+ISSUE: Devices show "Error" status
+SOLUTION:
+   1. Verify COM port in Device Manager
+   2. Check RS485 adapter is connected
+   3. Ensure device is powered on
+   4. Verify Instrument ID matches device slave ID
+   5. Check baud rate matches device setting
+   6. Test with single device first
+
+ISSUE: Can't access from network
+SOLUTION:
+   1. Run configure-firewall.bat as Administrator
+   2. Verify both computers on same network
+   3. Test with ping SERVER-IP from client computer
+   4. Temporarily disable antivirus/firewall to test
+
+ISSUE: Data not showing on graph
+SOLUTION:
+   1. Check "Graph" toggle is enabled for device
+   2. Verify device is enabled (toggle ON)
+   3. Wait for data to accumulate (at least 1-2 minutes)
+   4. Refresh browser page
+
+ISSUE: PostgreSQL service won't start
+SOLUTION:
+   1. Check port 5432 not in use
+   2. Verify data directory exists and has permissions
+   3. Check Windows Event Viewer for errors
+   4. Reinstall PostgreSQL if corrupted
+
+================================================================================
+SYSTEM VERIFICATION CHECKLIST
+================================================================================
+
+After installation, verify all components:
+
+□ PostgreSQL service running (services.msc)
+□ Database "modbus_monitor" created (pgAdmin)
+□ .env file configured with correct DATABASE_URL
+□ Firewall rules created (wf.msc)
+□ Backend starts without errors
+□ Frontend starts without errors
+□ Can access http://localhost in browser
+□ Can configure devices with CONFIG_PIN
+□ IRQ Pyrometer devices responding
+□ Real-time temperature readings visible
+□ WebSocket connection shows "Connected"
+□ Can export data to PDF
+□ Can access from network (optional)
+
+================================================================================
+CONTACT & SUPPORT
+================================================================================
+
+For technical support, contact:
+
+Toshniwal Industries Private Limited
+Technical Support Team
+
+Check logs for detailed error messages:
+- Backend logs: webpyro_backend\logs\DD-MM-YYYY\
+- Files: app.log, errors.log, modbus.log
+
+================================================================================
+                            INSTALLATION COMPLETE!
+
+           Refer to USER_GUIDE.txt for daily operation instructions
+================================================================================
+
+Version: 2.0
+Last Updated: December 2025
+Developed by: Toshniwal Industries Private Limited
+================================================================================

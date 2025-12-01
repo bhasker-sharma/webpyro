@@ -278,15 +278,15 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                                     <span className={`w-2 h-2 rounded-full ${pollingStats.is_running ? 'bg-blue-500 animate-pulse' : 'bg-gray-500'}`}></span>
                                     <span className="text-gray-600">Polling: {pollingStats.is_running ? 'Active' : 'Stopped'}</span>
                                 </div>
-                                <div className="text-gray-600">
+                                {/* <div className="text-gray-600">
                                     Cycle: <span className="font-semibold text-gray-800">{pollingStats.cycle_count}</span>
-                                </div>
+                                </div> */}
                                 <div className="text-gray-600">
                                     Buffer: <span className="font-semibold text-gray-800">{pollingStats.buffer_stats?.buffer_a_size + pollingStats.buffer_stats?.buffer_b_size || 0}</span>/{pollingStats.buffer_stats?.max_size || 100}
                                 </div>
-                                <div className="text-gray-600">
+                                {/* <div className="text-gray-600">
                                     Saved: <span className="font-semibold text-gray-800">{pollingStats.buffer_stats?.total_saved || 0}</span>
-                                </div>
+                                </div> */}
                             </div>
                             <div className="text-xs text-gray-500">
                                 Real-time mode

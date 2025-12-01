@@ -400,7 +400,7 @@ function GraphSection({ devices, devicesWithReadings }) {
                 {/* Legend Section */}
                 <div className="flex-1 border border-gray-300 rounded-lg overflow-hidden bg-white flex flex-col min-h-0">
                     <div className="px-2 py-1 bg-gray-100 border-b border-gray-300">
-                        <h3 className="text-xs font-semibold text-gray-700">Legend</h3>
+                        <h3 className="text-xs font-semibold text-gray-700">Colours</h3>
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         <table className="w-full text-xs">

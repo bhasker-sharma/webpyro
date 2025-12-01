@@ -1,62 +1,40 @@
 ================================================================================
-                    WEB PYROMETER MONITORING SYSTEM
-                         User Installation Guide
+                          MULTI IR THERMOMETER
+                    IRQ Pyrometer Monitoring System
+                         User Operation Guide
+                  Toshniwal Industries Private Limited
 ================================================================================
 
-SYSTEM REQUIREMENTS (PREREQUISITES):
------------------------------------
-REQUIRED:
-1. Windows 10/11 (64-bit)
-2. PostgreSQL 14 or later
-   Download: https://www.postgresql.org/download/windows/
-3. Python 3.11 or later (for serving frontend only)
-   Download: https://www.python.org/downloads/
-   IMPORTANT: Check "Add Python to PATH" during installation!
-4. The IRQ Pyrometer should have the baud rate of 9600 and same should be in the software and the device id should be in the range of  1-16. 
+This guide explains how to operate the MULTI IR THERMOMETER software for daily use.
 
+NOTE: This software has been pre-installed and configured by Toshniwal Industries.
 
+================================================================================
+QUICK START - STARTING THE SOFTWARE
+================================================================================
 
-
-Installation steps. (5 MINUTES):
-NOTE:- These are already configured on the CPU supplied with the system
------------------------------------------------------------------------
-
-STEP 1: Install PostgreSQL
-   - Download from: https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
-   - Remember your password during installation!
- 
- ****************Or if you do not understand how to install it folow these steps :- https://www.w3schools.com/postgresql/postgresql_install.php*****************
- 
-STEP 2: Create Database
-   - Open "pgAdmin 4" (installed with PostgreSQL)
-   - Right-click "Databases" → Create → Database
-   - Database name: modbus_monitor
-   - Click "Save"
-
-STEP 3: Configure Backend
-   - Navigate to: webpyro_backend\ folder
-   - Copy ".env.production" and rename it to ".env"
-   - Edit ".env" file with Notepad:
-     * Replace YOUR_PASSWORD with your PostgreSQL password
-     * Change CONFIG_PIN to your own 4-digit PIN
-
-   Example:
-   DATABASE_URL=postgresql://postgres:admin123@localhost:5432/modbus_monitor
-   CONFIG_PIN=9876
-
-STEP 4: Configure Firewall (RUN AS ADMINISTRATOR)
-   - Right-click "configure-firewall.bat" → Run as administrator
+STEP 1: Start the Application
+   - Locate: PRODUCTION-START-MINIMAL.bat
+   - Right-click → Run as administrator
    - Click "Yes" when prompted
+   - Wait 5-10 seconds for both servers to start
 
-STEP 5: Start the Application
-   - Double-click "PRODUCTION-START-MINIMAL.bat"
-   - Wait for both servers to start (5-10 seconds)
+STEP 2: Two windows will open:
+   - Backend Server (black window) - Keep this open
+   - Frontend Server (black window) - Keep this open
 
+   ⚠️ DO NOT CLOSE THESE WINDOWS while using the software!
 
-ACCESS THE APPLICATION:
-----------------------
+STEP 3: Access the Web Interface
+   - Open your web browser (Chrome, Edge, Firefox)
+   - Go to: http://localhost
+   - The MULTI IR THERMOMETER dashboard will appear
 
-From Server Computer:
+================================================================================
+ACCESSING FROM OTHER COMPUTERS ON THE NETWORK
+================================================================================
+
+From the Same Computer:
    http://localhost
    or
    http://COMPUTERNAME
@@ -66,89 +44,319 @@ From Other Computers on Network:
    or
    http://SERVER-IP-ADDRESS
 
-To find your server IP:
+To Find Your Server IP Address:
    - Open Command Prompt
    - Type: ipconfig
-   - Look for "IPv4 Address"
-
-
-STOPPING THE APPLICATION:
--------------------------
-   - Double-click "PRODUCTION-STOP.bat"
-   or
-   - Close both server windows manually
-
-
-
-CONFIGURATION:
--------------
-All settings in: webpyro_backend\.env
-
-Important settings:
-- DATABASE_URL: Your PostgreSQL connection
-- CONFIG_PIN: 4-digit PIN for device configuration
-- MODBUS_POLL_INTERVAL: Polling frequency (seconds)
-
-
-DEVICE SETUP:
-------------
-1. Start the application
-2. Open in browser: http://localhost
-3. Click "Configure Devices"
-4. Enter CONFIG_PIN 
-5. Add your IRQ Pyrometers with:
-   - Device name
-   - Slave ID (Modbus address)
-   - COM port (check Device Manager)
-   - Baud rate (match your IRQ pyrometers)
-6. Enable devices
-7. Save configuration
-
-
-TROUBLESHOOTING:
----------------
-
-Problem: "Backend not found" error
-Solution: Make sure webpyro_backend folder exists with .exe file
-
-Problem: Database connection error
-Solution:
-   - Verify PostgreSQL is running
-   - Check DATABASE_URL in .env file
-   - Ensure database "modbus_monitor" exists
-
-Problem: Can't access from other computers
-Solution:
-   - Run configure-firewall.bat as Administrator
-   - Make sure both computers are on same network
-   - Try using IP address instead of computer name
-
-Problem: Modbus devices not responding
-Solution:
-   - Check COM port in Device Manager
-   - Verify baud rate matches device settings
-   - Ensure RS485 adapter is connected
-   - Check device power and connections
-
-
-SUPPORT:
--------
-- Check backend logs: Look at "Backend Server" window
-- Check API status: http://localhost:8000/docs
-- Browser console: Press F12 in browser
-
-
-SECURITY NOTES:
---------------
-- Change CONFIG_PIN in .env file (default: 1234)
-- Use strong PostgreSQL password
-- Firewall is configured for local network only
-- No data leaves your local network
-
-
-VERSION: 2.0
-BUILT: November 2025
+   - Look for "IPv4 Address" (e.g., 192.168.1.100)
+   - Use: http://192.168.1.100
 
 ================================================================================
-                        Made for Industrial Monitoring
+UNDERSTANDING THE DASHBOARD
+================================================================================
+
+The dashboard displays three main sections:
+
+1. STATUS BAR (Top)
+   - WebSocket: Connected/Disconnected (real-time updates)
+   - Polling: Active/Stopped (device scanning)
+   - Buffer: Data queue status
+   - Up From: How long the system has been running
+
+2. DEVICES SECTION (Top Half)
+   - Shows all enabled IRQ Pyrometers
+   - Each device shows:
+     * Device Name (Location)
+     * Current Temperature (°C)
+     * Ambient Temperature (°C)
+     * Status: OK, Warning, Error, or Offline
+     * Last Update Time
+
+   Status Indicators:
+   - Green (OK): Device working normally
+   - Yellow (Warning): Check device
+   - Red (Error): Communication problem
+   - Gray (Offline): No recent data
+
+3. TEMPERATURE GRAPH (Bottom Half)
+   - Real-time temperature trends
+   - Each enabled device shown as colored line
+   - Auto-updates every reading
+   - Zoom: Click and drag on graph
+   - Reset Zoom: Double-click graph
+
+================================================================================
+VIEWING & EXPORTING DATA
+================================================================================
+
+STEP 1: Access Preview & Export
+   - Click "Preview & Export" button (top-right)
+   - Select time range:
+     * Last 1 Hour
+     * Last 6 Hours
+     * Last 12 Hours
+     * Last 24 Hours
+     * Custom Range (select dates)
+
+STEP 2: View Data Table
+   - All readings shown in table format
+   - Columns: Time, Device Name, Temperature, Ambient, Status
+   - Sorted by most recent first
+
+STEP 3: View Graph
+   - Scroll down to see temperature graph
+   - All devices plotted over selected time range
+
+STEP 4: Export to PDF
+   - Click "Export to PDF" button
+   - PDF automatically downloads
+   - Contains:
+     * Company header (Toshniwal Industries)
+     * Selected time range
+     * Data table (all readings)
+     * Temperature graph
+     * Export timestamp
+
+STEP 5: Export to CSV (Excel)
+   - Click "Export to CSV" button
+   - CSV file automatically downloads
+   - Open in Excel or Google Sheets
+   - Contains all reading data in spreadsheet format
+
+================================================================================
+CONFIGURING DEVICES (REQUIRES PIN)
+================================================================================
+
+NOTE: Only authorized personnel should configure devices.
+      You need a 4-digit PIN provided by Toshniwal Industries.
+
+STEP 1: Open Configuration
+   - Click "Configure Devices" button (top-right)
+   - Enter your 4-digit PIN
+   - Click "Verify PIN"
+
+STEP 2: Add IRQ Pyrometer Device
+   - Click "+ Add Device" button
+   - Fill in device information:
+     * Toggle ON to enable device
+     * Check "Graph" to show on graph
+     * Device Name: Location identifier (must be unique)
+     * Instrument ID: 1-16 (must match device slave ID)
+     * COM Port: Select from dropdown
+     * Baud Rate: Match device setting (usually 9600)
+     * Graph Y-Min: Minimum graph temperature (e.g., 600)
+     * Graph Y-Max: Maximum graph temperature (e.g., 2000)
+
+STEP 3: Remove Device
+   - Click "−" button next to device row
+
+STEP 4: Save Configuration
+   - Click "Save Configuration" button
+   - Confirm when prompted
+   - System will restart polling
+   - Wait 20-30 seconds for readings to appear
+
+IMPORTANT NOTES:
+   ✓ Maximum 16 devices allowed
+   ✓ Device Names must be unique
+   ✓ Instrument IDs must be unique (1-16)
+   ✓ Instrument ID must match the IRQ Pyrometer's slave ID
+   ✓ Baud rate must match the device configuration (default: 9600)
+
+================================================================================
+STOPPING THE SOFTWARE
+================================================================================
+
+OPTION 1: Using Stop Script (Recommended)
+   - Locate: PRODUCTION-STOP.bat
+   - Double-click to run
+   - Both servers will stop gracefully
+
+OPTION 2: Manual Stop
+   - Close the Backend Server window
+   - Close the Frontend Server window
+   - Or press Ctrl+C in each window
+
+⚠️ IMPORTANT: Always stop the software properly before shutting down the computer!
+
+================================================================================
+TROUBLESHOOTING COMMON ISSUES
+================================================================================
+
+PROBLEM: Can't access http://localhost
+SOLUTION:
+   - Ensure both server windows are open and running
+   - Check for error messages in server windows
+   - Try restarting: Run PRODUCTION-STOP.bat then PRODUCTION-START-MINIMAL.bat
+   - Try: http://127.0.0.1 instead
+
+PROBLEM: Device shows "Error" or "Offline"
+SOLUTION:
+   - Check that the IRQ Pyrometer is powered on
+   - Verify RS485 cable is connected
+   - Check COM port in Device Manager (Windows)
+   - Verify Instrument ID matches device slave ID
+   - Ensure baud rate matches device setting
+   - Try restarting the software
+
+PROBLEM: "WebSocket Disconnected" warning
+SOLUTION:
+   - Refresh browser page (F5)
+   - Check backend server is still running
+   - If issue persists, restart the software
+
+PROBLEM: No temperature readings appearing
+SOLUTION:
+   - Wait 20-30 seconds after startup for first reading
+   - Check device is enabled (toggle ON in configuration)
+   - Verify WebSocket shows "Connected"
+   - Check device status - should be green (OK)
+   - Restart the software
+
+PROBLEM: Can't access from other computers on network
+SOLUTION:
+   - Verify both computers are on the same network
+   - Check firewall settings on server computer
+   - Use IP address instead of computer name
+   - Test: ping SERVER-IP from client computer
+   - Contact your IT administrator
+
+PROBLEM: Graph not showing device
+SOLUTION:
+   - Check "Graph" toggle is enabled for device (in configuration)
+   - Verify device is enabled (toggle ON)
+   - Wait for data to accumulate (1-2 minutes)
+   - Refresh browser page
+
+PROBLEM: PDF export not working
+SOLUTION:
+   - Check browser allows pop-ups and downloads
+   - Try different browser (Chrome recommended)
+   - Ensure data exists for selected time range
+   - Check browser console for errors (F12)
+
+================================================================================
+DAILY OPERATION CHECKLIST
+================================================================================
+
+STARTING YOUR DAY:
+□ Run PRODUCTION-START-MINIMAL.bat as Administrator
+□ Wait for both server windows to open
+□ Access http://localhost in browser
+□ Verify all devices show green (OK) status
+□ Check WebSocket shows "Connected"
+□ Verify temperature readings are updating
+
+DURING OPERATION:
+□ Monitor device status indicators
+□ Keep both server windows open
+□ Check for any red (Error) status devices
+□ Monitor temperatures stay within expected ranges
+
+ENDING YOUR DAY (if shutting down):
+□ Export data for the day (Preview & Export → Last 24 Hours → Export to PDF)
+□ Run PRODUCTION-STOP.bat to stop servers or kill the terminal (close the terminals)
+□ Close browser
+□ Shutdown computer if needed
+
+================================================================================
+SYSTEM INFORMATION
+================================================================================
+
+Data Retention:
+- The system automatically keeps data for a configured period (default: 2 days)
+- Older data is automatically deleted to save disk space
+- Export important data to PDF/CSV before it's deleted
+
+Real-Time Updates:
+- Temperature readings update every 20 seconds (configurable)
+- WebSocket provides instant updates to dashboard
+- No need to refresh browser page
+
+Automatic Log Cleanup:
+- System logs are automatically managed
+- Old log files deleted after retention period
+- No manual cleanup needed
+
+Network Security:
+- System is designed for local network use only
+- No data is sent to the internet
+- All data stays on your local computer/network
+
+================================================================================
+GETTING HELP
+================================================================================
+
+For Technical Support:
+   Contact: Toshniwal Industries Private Limited
+   Technical Support Team
+
+Before Contacting Support, Have Ready:
+   - Description of the problem
+   - Error messages (screenshot or copy text)
+   - Which device(s) are affected
+   - When the problem started
+   - What you tried already
+
+Check Log Files:
+   - Location: webpyro_backend\logs\DD-MM-YYYY\
+   - Files: errors.log (for error messages)
+
+Browser Console (for web issues):
+   - Press F12 in browser
+   - Click "Console" tab
+   - Screenshot any red error messages
+
+================================================================================
+SYSTEM SPECIFICATIONS
+================================================================================
+
+Software Information:
+   Name: MULTI TEMPERATURE Monitor
+   Version: 2.0
+   Type: IRQ Pyrometer Monitoring System
+   Developer: Toshniwal Industries Private Limited
+   Release: December 2025
+
+Supported Devices:
+   - IRQ Pyrometers (Modbus RTU/RS485)
+   - Baud Rate: 9600 (default, configurable)
+   - Device IDs: 1-16
+   - Maximum Devices: 16 simultaneous
+
+System Requirements:
+   - Windows 10/11 (64-bit)
+   - PostgreSQL Database
+   - Web Browser (Chrome, Edge, Firefox)
+   - RS485 to USB Adapter
+
+Network Access:
+   - Server Port: 8000 (Backend API)
+   - Web Port: 80 (Frontend)
+   - Protocol: HTTP
+   - Real-time: WebSocket
+
+================================================================================
+                             IMPORTANT NOTES
+================================================================================
+
+✓ ALWAYS run PRODUCTION-START-MINIMAL.bat as Administrator
+✓ KEEP both server windows open while using the software
+✓ DO NOT close server windows - this will stop the software
+✓ BACKUP important data by exporting to PDF/CSV
+✓ VERIFY device Instrument IDs match IRQ Pyrometer slave IDs
+✓ ENSURE baud rates match between software and devices
+✓ CHECK WebSocket connection status (should be "Connected")
+
+✗ DO NOT modify any folder in server adn client(unless instructed)
+✗ DO NOT change database settings (contact support)
+✗ DO NOT run multiple instances simultaneously
+✗ DO NOT expose the system to the internet (local network only)
+
+================================================================================
+                          END OF USER GUIDE
+              For technical support, contact Toshniwal Industries
+================================================================================
+
+Developed by: Toshniwal Industries Private Limited
+Version: 2.0 | December 2025
 ================================================================================
