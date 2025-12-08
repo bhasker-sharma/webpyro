@@ -39,7 +39,15 @@ class PollingService:
         self.is_running = True
         logger.info("=" * 60)
         logger.info("POLLING SERVICE STARTING...")
-        logger.info(f"Poll interval: {settings.modbus_poll_interval}s")
+        if settings.modbus_enable_dynamic_polling:
+            logger.info(f"Dynamic Polling: ENABLED")
+            logger.info(f"  Min interval: {settings.modbus_min_poll_interval}s (for 1 device)")
+            logger.info(f"  Max interval: {settings.modbus_max_poll_interval}s")
+            logger.info(f"  Per-device time: {settings.modbus_per_device_time}s")
+            logger.info(f"  Safety factor: {settings.modbus_safety_factor}x")
+        else:
+            logger.info(f"Dynamic Polling: DISABLED")
+            logger.info(f"  Static poll interval: {settings.modbus_poll_interval}s")
         logger.info("=" * 60)
 
         # Start polling task
@@ -119,7 +127,34 @@ class PollingService:
             return []
         finally:
             db.close()
-    
+
+    def _calculate_dynamic_interval(self, num_devices: int) -> float:
+        """
+        Calculate polling interval dynamically based on number of enabled devices
+
+        Formula: min(max(num_devices * per_device_time * safety_factor, min_interval), max_interval)
+
+        Args:
+            num_devices: Number of enabled devices
+
+        Returns:
+            Calculated poll interval in seconds
+        """
+        if not settings.modbus_enable_dynamic_polling:
+            # Dynamic polling disabled - use static interval from .env
+            return settings.modbus_poll_interval
+
+        # Calculate interval based on number of devices
+        calculated_interval = num_devices * settings.modbus_per_device_time * settings.modbus_safety_factor
+
+        # Apply min/max bounds
+        dynamic_interval = max(
+            settings.modbus_min_poll_interval,
+            min(calculated_interval, settings.modbus_max_poll_interval)
+        )
+
+        return dynamic_interval
+
     async def _polling_loop(self):
         """
         Main polling loop - runs continuously
@@ -219,17 +254,28 @@ class PollingService:
                 cycle_end = datetime.now()
                 cycle_duration = (cycle_end - cycle_start).total_seconds()
 
+                # Calculate dynamic poll interval based on number of enabled devices
+                num_devices = len(devices)
+                poll_interval = self._calculate_dynamic_interval(num_devices)
+
                 # Only log cycle time every 500 cycles or if there's a performance issue
                 if self.cycle_count % 500 == 0:
-                    logger.info(f"Cycle #{self.cycle_count} completed in {cycle_duration:.2f}s")
+                    if settings.modbus_enable_dynamic_polling:
+                        logger.info(f"Cycle #{self.cycle_count} completed in {cycle_duration:.2f}s (Dynamic interval: {poll_interval:.2f}s for {num_devices} device(s))")
+                    else:
+                        logger.info(f"Cycle #{self.cycle_count} completed in {cycle_duration:.2f}s (Static interval: {poll_interval:.2f}s)")
+
+                # Log dynamic interval on first cycle for visibility
+                if self.cycle_count == 1:
+                    if settings.modbus_enable_dynamic_polling:
+                        logger.info(f"Dynamic polling ENABLED - Poll interval: {poll_interval:.2f}s for {num_devices} device(s)")
+                        logger.info(f"  Config: min={settings.modbus_min_poll_interval}s, max={settings.modbus_max_poll_interval}s, per_device={settings.modbus_per_device_time}s, safety_factor={settings.modbus_safety_factor}")
+                    else:
+                        logger.info(f"Dynamic polling DISABLED - Using static interval: {poll_interval}s")
 
                 # Log performance warning if cycle took too long
-                if cycle_duration > settings.modbus_poll_interval * 3:  # Only if 3x slower
-                    logger.warning(f"Polling cycle #{self.cycle_count} took {cycle_duration:.2f}s (expected ~{settings.modbus_poll_interval}s) - Performance degraded!")
-
-                # Configurable delay between polling cycles (from .env: MODBUS_POLL_INTERVAL)
-                # Reduce this for faster data capture (e.g., 1 second for high-frequency devices)
-                poll_interval = settings.modbus_poll_interval
+                if cycle_duration > poll_interval * 3:  # Only if 3x slower than calculated interval
+                    logger.warning(f"Polling cycle #{self.cycle_count} took {cycle_duration:.2f}s (expected ~{poll_interval:.2f}s) - Performance degraded!")
 
                 # If cycle took longer than interval, don't wait (already behind schedule)
                 if cycle_duration < poll_interval:

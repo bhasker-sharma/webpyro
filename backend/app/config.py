@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     modbus_timeout: int = 5
     modbus_poll_interval: int = 5
 
+    # Dynamic Polling Configuration
+    modbus_enable_dynamic_polling: bool = True
+    modbus_per_device_time: float = 0.5
+    modbus_min_poll_interval: float = 1.0
+    modbus_max_poll_interval: float = 20.0
+    modbus_safety_factor: float = 2.5
+
     # Common Modbus register settings (applied to all devices)
     modbus_register_address: int = 0
     modbus_function_code: int = 3
