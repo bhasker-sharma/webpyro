@@ -201,6 +201,171 @@ export const pyrometerAPI = {
         const response = await api.post('/polling/resume');
         return response.data;
     },
+
+    /**
+     * Get current slope value from pyrometer device
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    getSlope: async (slaveId = 1, comPort = null) => {
+        const params = new URLSearchParams();
+        params.append('slave_id', slaveId);
+        if (comPort) {
+            params.append('com_port', comPort);
+        }
+        const response = await api.get(`/pyrometer/slope?${params.toString()}`);
+        return response.data;
+    },
+
+    /**
+     * Set slope value on pyrometer device
+     * @param {number} slope - Slope value (0.20-1.00)
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    setSlope: async (slope, slaveId = 1, comPort = null) => {
+        const response = await api.post('/pyrometer/slope', {
+            value: slope,
+            slave_id: slaveId,
+            com_port: comPort
+        });
+        return response.data;
+    },
+
+    /**
+     * Get current measurement mode from pyrometer device
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    getMeasurementMode: async (slaveId = 1, comPort = null) => {
+        const params = new URLSearchParams();
+        params.append('slave_id', slaveId);
+        if (comPort) {
+            params.append('com_port', comPort);
+        }
+        const response = await api.get(`/pyrometer/measurement-mode?${params.toString()}`);
+        return response.data;
+    },
+
+    /**
+     * Set measurement mode on pyrometer device
+     * @param {number} mode - Measurement mode (0 = Monochrome, 1 = Colorimetric)
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    setMeasurementMode: async (mode, slaveId = 1, comPort = null) => {
+        const response = await api.post('/pyrometer/measurement-mode', {
+            value: mode,
+            slave_id: slaveId,
+            com_port: comPort
+        });
+        return response.data;
+    },
+
+    /**
+     * Get current time interval from pyrometer device
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    getTimeInterval: async (slaveId = 1, comPort = null) => {
+        const params = new URLSearchParams();
+        params.append('slave_id', slaveId);
+        if (comPort) {
+            params.append('com_port', comPort);
+        }
+        const response = await api.get(`/pyrometer/time-interval?${params.toString()}`);
+        return response.data;
+    },
+
+    /**
+     * Set time interval on pyrometer device
+     * @param {number} interval - Time interval in seconds (1-3600)
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    setTimeInterval: async (interval, slaveId = 1, comPort = null) => {
+        const response = await api.post('/pyrometer/time-interval', {
+            value: interval,
+            slave_id: slaveId,
+            com_port: comPort
+        });
+        return response.data;
+    },
+
+    /**
+     * Get current temperature lower limit from pyrometer device
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    getTempLowerLimit: async (slaveId = 1, comPort = null) => {
+        const params = new URLSearchParams();
+        params.append('slave_id', slaveId);
+        if (comPort) {
+            params.append('com_port', comPort);
+        }
+        const response = await api.get(`/pyrometer/temp-lower-limit?${params.toString()}`);
+        return response.data;
+    },
+
+    /**
+     * Set temperature lower limit on pyrometer device
+     * @param {number} temp - Temperature lower limit in °C (0-3000)
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    setTempLowerLimit: async (temp, slaveId = 1, comPort = null) => {
+        const response = await api.post('/pyrometer/temp-lower-limit', {
+            value: temp,
+            slave_id: slaveId,
+            com_port: comPort
+        });
+        return response.data;
+    },
+
+    /**
+     * Get current temperature upper limit from pyrometer device
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    getTempUpperLimit: async (slaveId = 1, comPort = null) => {
+        const params = new URLSearchParams();
+        params.append('slave_id', slaveId);
+        if (comPort) {
+            params.append('com_port', comPort);
+        }
+        const response = await api.get(`/pyrometer/temp-upper-limit?${params.toString()}`);
+        return response.data;
+    },
+
+    /**
+     * Set temperature upper limit on pyrometer device
+     * @param {number} temp - Temperature upper limit in °C (0-3000)
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    setTempUpperLimit: async (temp, slaveId = 1, comPort = null) => {
+        const response = await api.post('/pyrometer/temp-upper-limit', {
+            value: temp,
+            slave_id: slaveId,
+            com_port: comPort
+        });
+        return response.data;
+    },
+
+    /**
+     * Get all writable parameters from pyrometer device at once
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    getAllParameters: async (slaveId = 1, comPort = null) => {
+        const params = new URLSearchParams();
+        params.append('slave_id', slaveId);
+        if (comPort) {
+            params.append('com_port', comPort);
+        }
+        const response = await api.get(`/pyrometer/all-parameters?${params.toString()}`);
+        return response.data;
+    },
 };
 
 export default api;
