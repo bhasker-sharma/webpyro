@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 
-function Navbar({ onConfigureClick }) {
+function Navbar({ onConfigureClick, onPyrometerSettingsClick }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     return (
@@ -27,6 +27,16 @@ function Navbar({ onConfigureClick }) {
                             </svg>
                             <span>Preview & Export</span>
                         </Link>
+
+                        <button
+                            onClick={onPyrometerSettingsClick}
+                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center space-x-2 font-medium shadow-md text-sm"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                            </svg>
+                            <span>Pyrometer Settings</span>
+                        </button>
 
                         <button
                             onClick={onConfigureClick}
@@ -73,6 +83,19 @@ function Navbar({ onConfigureClick }) {
                             </svg>
                             <span>Preview & Export</span>
                         </Link>
+
+                        <button
+                            onClick={() => {
+                                onPyrometerSettingsClick();
+                                setMobileMenuOpen(false);
+                            }}
+                            className="w-full flex items-center space-x-2 px-4 py-3 text-gray-700 hover:bg-blue-100 rounded-lg transition text-left"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                            </svg>
+                            <span>Pyrometer Settings</span>
+                        </button>
 
                         <button
                             onClick={() => {

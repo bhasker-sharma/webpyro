@@ -143,4 +143,64 @@ export const configAPI = {
     },
 };
 
+// ============================================================================
+// PYROMETER API FUNCTIONS
+// ============================================================================
+
+export const pyrometerAPI = {
+    /**
+     * Get current emissivity value from pyrometer device
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    getEmissivity: async (slaveId = 1, comPort = null) => {
+        const params = new URLSearchParams();
+        params.append('slave_id', slaveId);
+        if (comPort) {
+            params.append('com_port', comPort);
+        }
+        const response = await api.get(`/pyrometer/emissivity?${params.toString()}`);
+        return response.data;
+    },
+
+    /**
+     * Set emissivity value on pyrometer device
+     * @param {number} emissivity - Emissivity value (0.20-1.00)
+     * @param {number} slaveId - Device slave ID (1-16)
+     * @param {string} comPort - COM port (e.g., 'COM3')
+     */
+    setEmissivity: async (emissivity, slaveId = 1, comPort = null) => {
+        const response = await api.post('/pyrometer/emissivity', {
+            emissivity,
+            slave_id: slaveId,
+            com_port: comPort
+        });
+        return response.data;
+    },
+
+    /**
+     * Test RS-485 connection to pyrometer device
+     */
+    testConnection: async () => {
+        const response = await api.get('/pyrometer/test-connection');
+        return response.data;
+    },
+
+    /**
+     * Pause polling service to avoid COM port conflicts
+     */
+    pausePolling: async () => {
+        const response = await api.post('/polling/pause');
+        return response.data;
+    },
+
+    /**
+     * Resume polling service after parameter configuration
+     */
+    resumePolling: async () => {
+        const response = await api.post('/polling/resume');
+        return response.data;
+    },
+};
+
 export default api;

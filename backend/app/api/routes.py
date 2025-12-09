@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Optional
 from app.api.devices import router as devices_router
 from app.api.websocket import router as websocket_router  # WebSocket routes
+from app.api.pyrometer import router as pyrometer_router  # Pyrometer control routes
 from app.database import get_db, engine
 from sqlalchemy import text
 from app.models.device import DeviceSettings, DeviceReading
@@ -227,6 +228,44 @@ async def restart_polling():
         raise HTTPException(
             status_code=500,
             detail=f"Failed to restart polling service: {str(e)}"
+        )
+
+@router.post("/polling/pause")
+async def pause_polling():
+    """
+    Pause the polling service
+    Call this before accessing device parameters to avoid COM port conflicts
+    """
+    from app.services.polling_service import polling_service
+    try:
+        await polling_service.stop()
+        return {
+            "status": "success",
+            "message": "Polling service paused successfully"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to pause polling service: {str(e)}"
+        )
+
+@router.post("/polling/resume")
+async def resume_polling():
+    """
+    Resume the polling service
+    Call this after accessing device parameters to resume temperature monitoring
+    """
+    from app.services.polling_service import polling_service
+    try:
+        await polling_service.start()
+        return {
+            "status": "success",
+            "message": "Polling service resumed successfully"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to resume polling service: {str(e)}"
         )
 
 # ============================================================================
@@ -719,3 +758,6 @@ router.include_router(devices_router, tags=["devices"])
 
 # Include WebSocket routes (for real-time data streaming)
 router.include_router(websocket_router, tags=["websocket"])
+
+# Include pyrometer control routes (they have their own /api/pyrometer prefix)
+router.include_router(pyrometer_router, tags=["pyrometer"])

@@ -154,6 +154,18 @@ def setup_logging():
     ws_handler.setFormatter(file_format)
     websocket_logger.addHandler(ws_handler)
 
+    # 8. PARAMETERS LOG (Emissivity, etc.)
+    parameters_logger = logging.getLogger('app.rs485_client')
+    parameters_handler = logging.handlers.RotatingFileHandler(
+        filename=log_dir / "parameters.log",
+        maxBytes=10 * 1024 * 1024,  # 10 MB
+        backupCount=5,  # Keep 5 backups = ~50 MB total
+        encoding='utf-8'
+    )
+    parameters_handler.setLevel(logging.DEBUG)  # Capture all parameter operations for debugging
+    parameters_handler.setFormatter(file_format)
+    parameters_logger.addHandler(parameters_handler)
+
     # =========================================================================
     # SUPPRESS NOISY THIRD-PARTY LOGGERS
     # =========================================================================
@@ -178,7 +190,8 @@ def setup_logging():
     startup_logger.info("  - database.log: Database operations (INFO+) - 20MB x3")
     startup_logger.info("  - api.log: API requests/responses (INFO+) - 30MB x3")
     startup_logger.info("  - websocket.log: WebSocket connections (INFO+) - 20MB x3")
-    startup_logger.info("Total max space: ~1.5 GB (keeps several weeks of data)")
+    startup_logger.info("  - parameters.log: Device parameters (DEBUG+) - 10MB x5")
+    startup_logger.info("Total max space: ~1.6 GB (keeps several weeks of data)")
     startup_logger.info("=" * 80)
 
     return log_dir

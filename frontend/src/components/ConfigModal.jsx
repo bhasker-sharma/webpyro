@@ -9,6 +9,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
     const [pinError, setPinError] = useState('');
     const [isPinVerified, setIsPinVerified] = useState(false);
 
+
     // Common configuration fields for all devices
     const [commonConfig, setCommonConfig] = useState({
         com_port: 'COM3',
@@ -237,6 +238,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
         setConfigDevices(updated);
     };
 
+
     const handleSave = () => {
         // Validate before saving
         const validationErrors = getValidationErrors();
@@ -355,6 +357,8 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                 <div className="flex-1 overflow-auto p-4">
                     <div className="mb-4 text-sm text-gray-600">
                         Add devices one by one (maximum 16 devices). Use the + button to add new rows, - button to delete rows, and toggle to enable/disable devices. Toggle to enable, select if graph is needed and add name of the location of pyrometer, enter <strong>unique Instrument ID from 1-16</strong> (no duplicates allowed), and baud rate depending on ID and baud rate entered in the respective pyrometer. <strong>Device names must also be unique.</strong>
+                        <br/><br/>
+                        <strong>Note:</strong> To configure device parameters like emissivity, use the <strong>Pyrometer Settings</strong> option from the navigation bar.
                     </div>
 
                     {/* Common Configuration Section */}
