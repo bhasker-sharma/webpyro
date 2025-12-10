@@ -38,8 +38,10 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
     // Constants
     const MIN_EMISSIVITY = 0.01;
     const MAX_EMISSIVITY = 1.30;
-    const MIN_TEMP = 600;
-    const MAX_TEMP = 2000;
+    const MIN_TEMP_LOWER = 600;
+    const MAX_TEMP_LOWER = 1200;  // Lower limit max is 1200°C
+    const MIN_TEMP_UPPER = 700;   // Upper limit min is 700°C
+    const MAX_TEMP_UPPER = 2000;
     const MIN_TIME_INTERVAL = 1;
     const MAX_TIME_INTERVAL = 30;
     const MIN_SLOPE = 0.800;
@@ -564,7 +566,7 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     Lower Temperature Limit (°C)
-                    <span className="text-gray-500 font-normal ml-2">({MIN_TEMP} - {MAX_TEMP})</span>
+                    <span className="text-gray-500 font-normal ml-2">({MIN_TEMP_LOWER} - {MAX_TEMP_LOWER})</span>
                 </label>
                 <input
                     type="number"
@@ -573,9 +575,9 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                         setTempLowerLimitInput(e.target.value);
                         setMessage({ type: '', text: '' });
                     }}
-                    step="1"
-                    min={MIN_TEMP}
-                    max={MAX_TEMP}
+                    step="100"
+                    min={MIN_TEMP_LOWER}
+                    max={MAX_TEMP_LOWER}
                     disabled={isLoading || isSaving || !selectedDevice || !pollingPaused}
                     className="w-full px-4 py-3 text-lg border-2 rounded-lg focus:outline-none focus:border-blue-500 disabled:bg-gray-100"
                 />
@@ -585,7 +587,7 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     Upper Temperature Limit (°C)
-                    <span className="text-gray-500 font-normal ml-2">({MIN_TEMP} - {MAX_TEMP})</span>
+                    <span className="text-gray-500 font-normal ml-2">({MIN_TEMP_UPPER} - {MAX_TEMP_UPPER})</span>
                 </label>
                 <input
                     type="number"
@@ -594,9 +596,9 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                         setTempUpperLimitInput(e.target.value);
                         setMessage({ type: '', text: '' });
                     }}
-                    step="1"
-                    min={MIN_TEMP}
-                    max={MAX_TEMP}
+                    step="100"
+                    min={MIN_TEMP_UPPER}
+                    max={MAX_TEMP_UPPER}
                     disabled={isLoading || isSaving || !selectedDevice || !pollingPaused}
                     className="w-full px-4 py-3 text-lg border-2 rounded-lg focus:outline-none focus:border-red-500 disabled:bg-gray-100"
                 />
@@ -608,8 +610,11 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                     onClick={async () => {
                         const lower = parseInt(tempLowerLimitInput);
                         const upper = parseInt(tempUpperLimitInput);
-                        if (isNaN(lower) || isNaN(upper) || lower < MIN_TEMP || upper > MAX_TEMP || lower >= upper) {
-                            setMessage({ type: 'error', text: `Invalid temperature limits` });
+                        if (isNaN(lower) || isNaN(upper) ||
+                            lower < MIN_TEMP_LOWER || lower > MAX_TEMP_LOWER ||
+                            upper < MIN_TEMP_UPPER || upper > MAX_TEMP_UPPER ||
+                            lower >= upper) {
+                            setMessage({ type: 'error', text: `Invalid temperature limits. Lower: ${MIN_TEMP_LOWER}-${MAX_TEMP_LOWER}°C, Upper: ${MIN_TEMP_UPPER}-${MAX_TEMP_UPPER}°C` });
                             return;
                         }
                         setIsSaving(true);
