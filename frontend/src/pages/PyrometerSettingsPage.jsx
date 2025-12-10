@@ -38,10 +38,10 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
     // Constants
     const MIN_EMISSIVITY = 0.01;
     const MAX_EMISSIVITY = 1.30;
-    const MIN_TEMP = 0;
-    const MAX_TEMP = 3000;
+    const MIN_TEMP = 600;
+    const MAX_TEMP = 2000;
     const MIN_TIME_INTERVAL = 1;
-    const MAX_TIME_INTERVAL = 3600;
+    const MAX_TIME_INTERVAL = 30;
     const MIN_SLOPE = 0.800;
     const MAX_SLOPE = 1.200;
     const MEASUREMENT_MODES = {
