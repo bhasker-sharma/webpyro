@@ -36,12 +36,14 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
     const [tempUpperLimitInput, setTempUpperLimitInput] = useState('3000');
 
     // Constants
-    const MIN_EMISSIVITY = 0.20;
-    const MAX_EMISSIVITY = 1.00;
+    const MIN_EMISSIVITY = 0.01;
+    const MAX_EMISSIVITY = 1.30;
     const MIN_TEMP = 0;
     const MAX_TEMP = 3000;
     const MIN_TIME_INTERVAL = 1;
     const MAX_TIME_INTERVAL = 3600;
+    const MIN_SLOPE = 0.800;
+    const MAX_SLOPE = 1.200;
     const MEASUREMENT_MODES = {
         0: 'Monochrome',
         1: 'Colorimetric'
@@ -157,10 +159,10 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
 
             // Update all states
             setEmissivity(response.emissivity);
-            setEmissivityInput(response.emissivity.toFixed(2));
+            setEmissivityInput(response.emissivity.toFixed(3));
 
             setSlope(response.slope);
-            setSlopeInput(response.slope.toFixed(2));
+            setSlopeInput(response.slope.toFixed(3));
 
             setMeasurementMode(response.measurement_mode);
 
@@ -207,7 +209,7 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                     {isLoading ? (
                         <div className="animate-pulse bg-gray-300 h-6 w-20 rounded"></div>
                     ) : (
-                        <span className="text-2xl font-bold text-green-600">{emissivity.toFixed(2)}</span>
+                        <span className="text-2xl font-bold text-green-600">{emissivity.toFixed(3)}</span>
                     )}
                 </div>
             </div>
@@ -225,7 +227,7 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                         setEmissivityInput(e.target.value);
                         setMessage({ type: '', text: '' });
                     }}
-                    step="0.01"
+                    step="0.001"
                     min={MIN_EMISSIVITY}
                     max={MAX_EMISSIVITY}
                     disabled={isLoading || isSaving || !selectedDevice || !pollingPaused}
@@ -238,7 +240,7 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                         type="range"
                         value={emissivityInput}
                         onChange={(e) => setEmissivityInput(e.target.value)}
-                        step="0.01"
+                        step="0.001"
                         min={MIN_EMISSIVITY}
                         max={MAX_EMISSIVITY}
                         disabled={isLoading || isSaving || !selectedDevice || !pollingPaused}
@@ -266,7 +268,7 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                             const comPort = selectedDevice.com_port || selectedComPort;
                             const response = await pyrometerAPI.setEmissivity(value, slaveId, comPort);
                             setEmissivity(response.emissivity);
-                            setEmissivityInput(response.emissivity.toFixed(2));
+                            setEmissivityInput(response.emissivity.toFixed(3));
                             setMessage({ type: 'success', text: 'Emissivity saved successfully' });
                         } catch (error) {
                             setMessage({ type: 'error', text: error.response?.data?.detail || 'Failed to save' });
@@ -305,7 +307,7 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                     {isLoading ? (
                         <div className="animate-pulse bg-gray-300 h-6 w-20 rounded"></div>
                     ) : (
-                        <span className="text-2xl font-bold text-blue-600">{slope.toFixed(2)}</span>
+                        <span className="text-2xl font-bold text-blue-600">{slope.toFixed(3)}</span>
                     )}
                 </div>
             </div>
@@ -314,7 +316,7 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     New Slope Value (Colorimetric Emissivity)
-                    <span className="text-gray-500 font-normal ml-2">({MIN_EMISSIVITY} - {MAX_EMISSIVITY})</span>
+                    <span className="text-gray-500 font-normal ml-2">({MIN_SLOPE} - {MAX_SLOPE})</span>
                 </label>
                 <input
                     type="number"
@@ -323,9 +325,9 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                         setSlopeInput(e.target.value);
                         setMessage({ type: '', text: '' });
                     }}
-                    step="0.01"
-                    min={MIN_EMISSIVITY}
-                    max={MAX_EMISSIVITY}
+                    step="0.001"
+                    min={MIN_SLOPE}
+                    max={MAX_SLOPE}
                     disabled={isLoading || isSaving || !selectedDevice || !pollingPaused}
                     className="w-full px-4 py-3 text-lg border-2 rounded-lg focus:outline-none focus:border-blue-500 disabled:bg-gray-100"
                     placeholder="Enter slope (e.g., 0.95)"
@@ -337,7 +339,7 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                 <button
                     onClick={async () => {
                         const value = parseFloat(slopeInput);
-                        if (isNaN(value) || value < MIN_EMISSIVITY || value > MAX_EMISSIVITY) {
+                        if (isNaN(value) || value < MIN_SLOPE || value > MAX_SLOPE) {
                             setMessage({ type: 'error', text: `Invalid slope value` });
                             return;
                         }
@@ -673,9 +675,8 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                 <div className="flex-1 overflow-y-auto">
                     <div className="p-6">
                         {/* Polling Paused Banner */}
-                        <div className={`mb-6 p-4 rounded-lg border ${
-                            pollingPaused ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'
-                        }`}>
+                        <div className={`mb-6 p-4 rounded-lg border ${pollingPaused ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'
+                            }`}>
                             <div className="flex items-center space-x-2">
                                 {pollingPaused ? (
                                     <>
@@ -752,11 +753,10 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`px-4 py-2 font-medium text-sm whitespace-nowrap transition ${
-                                            activeTab === tab.id
-                                                ? 'border-b-2 border-green-600 text-green-600'
-                                                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-                                        }`}
+                                        className={`px-4 py-2 font-medium text-sm whitespace-nowrap transition ${activeTab === tab.id
+                                            ? 'border-b-2 border-green-600 text-green-600'
+                                            : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                                            }`}
                                     >
                                         <span className="mr-2">{tab.icon}</span>
                                         {tab.name}
@@ -776,11 +776,10 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
 
                         {/* Message Display */}
                         {message.text && (
-                            <div className={`p-3 rounded-lg text-sm ${
-                                message.type === 'success'
-                                    ? 'bg-green-50 text-green-800 border border-green-200'
-                                    : 'bg-red-50 text-red-800 border border-red-200'
-                            }`}>
+                            <div className={`p-3 rounded-lg text-sm ${message.type === 'success'
+                                ? 'bg-green-50 text-green-800 border border-green-200'
+                                : 'bg-red-50 text-red-800 border border-red-200'
+                                }`}>
                                 {message.text}
                             </div>
                         )}
