@@ -45,15 +45,18 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
     const MIN_SLOPE = 0.800;
     const MAX_SLOPE = 1.200;
     const MEASUREMENT_MODES = {
-        0: 'Monochrome',
-        1: 'Colorimetric'
+        0: 'Real-time temperature mode',
+        1: 'Peak Hold (MAX)',
+        2: 'Average Hold (AVG)',
+        3: 'Trigger-Peak',
+        4: 'Trigger-Average'
     };
 
     // Tabs configuration
     const tabs = [
         { id: 'emissivity', name: 'Emissivity', icon: '📊' },
         { id: 'slope', name: 'Slope', icon: '📈' },
-        { id: 'mode', name: 'Measurement Mode', icon: '🎯' },
+        { id: 'mode', name: 'Temperature Mode', icon: '🎯' },
         { id: 'interval', name: 'Time Interval', icon: '⏱️' },
         { id: 'limits', name: 'Temperature Limits', icon: '🌡️' },
     ];
@@ -397,7 +400,7 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
             {/* Mode Selection */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Measurement Mode
+                    Select Temperature Measurement Mode
                 </label>
                 <div className="space-y-2">
                     {Object.entries(MEASUREMENT_MODES).map(([value, name]) => (
@@ -449,8 +452,8 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
 
             {/* Info */}
             <div className="p-3 bg-blue-50 rounded-lg text-xs text-blue-800">
-                <p className="font-semibold mb-1">About Measurement Mode:</p>
-                <p>Monochrome: Single wavelength temperature measurement. Colorimetric: Dual wavelength ratio measurement.</p>
+                <p className="font-semibold mb-1">About Temperature Measurement Modes:</p>
+                <p><strong>Real-time:</strong> Continuous live temperature readings. <strong>Peak Hold:</strong> Captures and holds maximum temperature. <strong>Average Hold:</strong> Displays average temperature over time. <strong>Trigger modes:</strong> Capture peak/average on trigger event.</p>
             </div>
         </div>
     );

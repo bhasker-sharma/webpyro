@@ -54,11 +54,14 @@ MAX_TEMP_LIMIT = 3000  # Adjust based on your device specs
 MIN_TIME_INTERVAL = 1
 MAX_TIME_INTERVAL = 3600
 
-# Measurement mode (device-specific values - check manual)
-# Common values: 0 = Monochrome, 1 = Colorimetric, etc.
+# Temperature Measurement Mode (Register 6)
+# These modes control how the device measures and processes temperature readings
 MEASUREMENT_MODES = {
-    0: "Monochrome",
-    1: "Colorimetric"
+    0: "Real-time temperature mode",
+    1: "Peak Hold (MAX)",
+    2: "Average Hold (AVG)",
+    3: "Trigger-Peak",
+    4: "Trigger-Average"
 }
 
 # Backward compatibility
