@@ -12,6 +12,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [wsConnected, setWsConnected] = useState(false); // WebSocket connection state
+    const [activeAlarms, setActiveAlarms] = useState(new Set()); // Track devices with active alarms
 
     useEffect(() => {
         console.log('Dashboard mounted');
@@ -28,15 +29,41 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
             console.log('WebSocket connection state:', data.connected);
             setWsConnected(data.connected);
 
-            // Clear readings when WebSocket disconnects
+            // Clear readings and alarms when WebSocket disconnects
             if (!data.connected) {
-                console.log('WebSocket disconnected - clearing readings');
+                console.log('WebSocket disconnected - clearing readings and alarms');
                 setDevicesWithReadings([]);
+                setActiveAlarms(new Set()); // Clear all active alarms
             }
         };
 
         // Listen for real-time reading updates
         const handleReadingUpdate = (data) => {
+            // Check for ambient temperature alarm (> 65°C)
+            const AMBIENT_TEMP_THRESHOLD = 32;
+            if (data.ambient_temp !== null && data.ambient_temp !== undefined && data.ambient_temp >= AMBIENT_TEMP_THRESHOLD) {
+                setActiveAlarms(prev => {
+                    const newAlarms = new Set(prev);
+                    if (!newAlarms.has(data.device_id)) {
+                        newAlarms.add(data.device_id);
+                        console.log(`🚨 ALARM TRIGGERED: Device "${data.device_name}" (ID: ${data.device_id}) - Ambient: ${data.ambient_temp.toFixed(1)}°C > ${AMBIENT_TEMP_THRESHOLD}°C`);
+                        console.log(`📊 Active alarms now:`, Array.from(newAlarms));
+                    }
+                    return newAlarms;
+                });
+            } else {
+                // Clear alarm if temperature is back to normal
+                setActiveAlarms(prev => {
+                    const newAlarms = new Set(prev);
+                    if (newAlarms.has(data.device_id)) {
+                        newAlarms.delete(data.device_id);
+                        console.log(`✅ ALARM CLEARED: Device "${data.device_name}" (ID: ${data.device_id}) - Ambient: ${data.ambient_temp?.toFixed(1)}°C ≤ ${AMBIENT_TEMP_THRESHOLD}°C`);
+                        console.log(`📊 Active alarms now:`, Array.from(newAlarms));
+                    }
+                    return newAlarms;
+                });
+            }
+
             // Update the device reading immediately
             setDevicesWithReadings(prev => {
                 const updated = [...prev];
@@ -247,10 +274,29 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
             setLoading(false);
         }
     };
-  
+
     return (
         <div className="h-screen bg-gray-50 overflow-hidden">
             <div className="container mx-auto px-2 h-full flex flex-col">
+                {/* Alarm Banner */}
+                {activeAlarms.size > 0 && (
+                    <div className="mt-2 bg-red-600 border-2 border-red-700 rounded-lg shadow-lg px-4 py-3 animate-alarm-blink">
+                        <div className="flex items-center space-x-3">
+                            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            <div className="flex-1">
+                                <p className="text-white font-bold text-sm">
+                                    AMBIENT TEMPERATURE ALARM!
+                                </p>
+                                <p className="text-red-100 text-xs">
+                                    {activeAlarms.size} device{activeAlarms.size > 1 ? 's' : ''} exceeded 65°C ambient temperature threshold
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Status Bar */}
                 {pollingStats && (
                     <div className="mt-2 bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-2">
@@ -333,12 +379,14 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                                 devices.map((device) => {
                                     // Find matching reading data for this device
                                     const readingData = devicesWithReadings.find(r => r.device_id === device.id);
+                                    const hasAlarm = activeAlarms.has(device.id);
                                     return (
                                         <DeviceCard
                                             key={device.id}
                                             device={device}
                                             reading={readingData?.latest_reading}
                                             formatTimeAgo={formatTimeAgo}
+                                            hasAlarm={hasAlarm}
                                         />
                                     );
                                 })
@@ -378,7 +426,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     );
 }
 
-function DeviceCard({ device, reading, formatTimeAgo }) {
+function DeviceCard({ device, reading, formatTimeAgo, hasAlarm }) {
     const getStatusColor = (status) => {
         switch (status) {
             case 'OK': return 'bg-green-100 text-green-800 border-green-300';
@@ -405,7 +453,7 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
     const errorMessage = reading?.error_message || '';
 
     return (
-        <div className={`bg-gradient-to-br ${getCardGradient(status)} rounded-lg p-2 border hover:shadow-lg transition flex flex-col justify-between min-h-0`}>
+        <div className={`bg-gradient-to-br ${getCardGradient(status)} rounded-lg p-2 border hover:shadow-lg transition flex flex-col justify-between min-h-0 ${hasAlarm ? 'animate-alarm-blink border-4 border-red-600' : ''}`}>
             <div className="flex items-center justify-between mb-1">
                 <h3 className="font-semibold text-gray-800 text-xs truncate flex-1">{device.name}</h3>
                 <span className="text-[10px] text-gray-500 ml-1">ID:{device.slave_id}</span>
@@ -424,8 +472,8 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
                         </div>
                         {/* Ambient Temperature - Enhanced visibility */}
                         {ambientTemp !== null && ambientTemp !== undefined && (
-                            <div className="mt-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs font-semibold text-blue-700">
-                                🌡️ Ambient: {ambientTemp.toFixed(1)}°C
+                            <div className={`mt-1 px-2 py-0.5 ${hasAlarm ? 'bg-red-600 border-red-700 text-white' : 'bg-blue-50 border-blue-200 text-blue-700'} border rounded text-xs font-semibold`}>
+                                {hasAlarm ? '🚨' : '🌡️'} Ambient: {ambientTemp.toFixed(1)}°C {hasAlarm ? '⚠️' : ''}
                             </div>
                         )}
                         {/* Error Message */}
@@ -442,8 +490,8 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
                         </div>
                         {/* Ambient Temperature - Enhanced visibility */}
                         {ambientTemp !== null && ambientTemp !== undefined && (
-                            <div className="mt-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs font-semibold text-blue-700">
-                                🌡️ Ambient: {ambientTemp.toFixed(1)}°C
+                            <div className={`mt-1 px-2 py-0.5 ${hasAlarm ? 'bg-red-600 border-red-700 text-white' : 'bg-blue-50 border-blue-200 text-blue-700'} border rounded text-xs font-semibold`}>
+                                {hasAlarm ? '🚨' : '🌡️'} Ambient: {ambientTemp.toFixed(1)}°C {hasAlarm ? '⚠️' : ''}
                             </div>
                         )}
                     </>

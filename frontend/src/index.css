@@ -35,3 +35,15 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Alarm blinking animation */
+@keyframes alarm-blink {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4), 0 0 20px rgba(239, 68, 68, 0.2);
+  }
+}
