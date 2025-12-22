@@ -40,7 +40,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
         // Listen for real-time reading updates
         const handleReadingUpdate = (data) => {
             // Check for ambient temperature alarm (> 65°C)
-            const AMBIENT_TEMP_THRESHOLD = 32;
+            const AMBIENT_TEMP_THRESHOLD = 65;
             if (data.ambient_temp !== null && data.ambient_temp !== undefined && data.ambient_temp >= AMBIENT_TEMP_THRESHOLD) {
                 setActiveAlarms(prev => {
                     const newAlarms = new Set(prev);
