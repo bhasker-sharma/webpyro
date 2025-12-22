@@ -38,16 +38,9 @@ class PollingService:
 
         self.is_running = True
         logger.info("=" * 60)
-        logger.info("POLLING SERVICE STARTING...")
-        if settings.modbus_enable_dynamic_polling:
-            logger.info(f"Dynamic Polling: ENABLED")
-            logger.info(f"  Min interval: {settings.modbus_min_poll_interval}s (for 1 device)")
-            logger.info(f"  Max interval: {settings.modbus_max_poll_interval}s")
-            logger.info(f"  Per-device time: {settings.modbus_per_device_time}s")
-            logger.info(f"  Safety factor: {settings.modbus_safety_factor}x")
-        else:
-            logger.info(f"Dynamic Polling: DISABLED")
-            logger.info(f"  Static poll interval: {settings.modbus_poll_interval}s")
+        logger.info("POLLING SERVICE STARTING (SINGLE DEVICE CONTINUOUS MODE)...")
+        logger.info("Reading continuously from single device (Slave ID 1)")
+        logger.info("No polling interval - data comes at device read speed")
         logger.info("=" * 60)
 
         # Start polling task
@@ -157,143 +150,113 @@ class PollingService:
 
     async def _polling_loop(self):
         """
-        Main polling loop - runs continuously
+        Main continuous reading loop for single device
+        Reads continuously without polling intervals
         """
-        logger.info("Polling loop started")
+        logger.info("Continuous reading loop started (single device mode)")
 
         while self.is_running:
             try:
                 self.cycle_count += 1
                 cycle_start = datetime.now()
 
-                # Get enabled devices
+                # Get enabled devices (should be only one in single device mode)
                 devices = self._get_enabled_devices()
 
                 if not devices:
                     if self.cycle_count == 1:
-                        logger.warning("No enabled devices found on first cycle, waiting...")
+                        logger.warning("No enabled device found on first cycle, waiting...")
                     elif self.cycle_count % 20 == 0:  # Log every 20th cycle to reduce spam
-                        logger.warning(f"Still no enabled devices found (cycle #{self.cycle_count}), waiting...")
+                        logger.warning(f"Still no enabled device found (cycle #{self.cycle_count}), waiting...")
                     await asyncio.sleep(5)
                     continue
 
-                # Only log cycle info every 500 cycles (reduces log volume significantly)
-                if self.cycle_count % 500 == 0:
-                    logger.info(f"Polling cycle #{self.cycle_count} - Reading {len(devices)} devices")
-                    for dev in devices:
-                        logger.info(f"  - {dev.name} (ID:{dev.id}, Slave:{dev.slave_id}, Port:{dev.com_port})")
+                # Single device mode - use first device only
+                device = devices[0]
 
-                # Read devices SEQUENTIALLY (one at a time) for RS485 serial communication
-                # RS485 is serial, not parallel - only one device can communicate at a time
-                for device in devices:
-                    """Read a single device and broadcast/store the result"""
-                    if not self.is_running:
-                        break
+                # Log device info on first cycle and every 1000 cycles
+                if self.cycle_count == 1 or self.cycle_count % 1000 == 0:
+                    logger.info(f"Reading cycle #{self.cycle_count} - Device: {device.name} (Slave ID: {device.slave_id}, Port: {device.com_port})")
 
-                    # Prepare device config for Modbus service
-                    device_config = {
-                        'id': device.id,
-                        'name': device.name,
-                        'slave_id': device.slave_id,
-                        'baud_rate': device.baud_rate,
-                        'com_port': device.com_port,
-                        'function_code': device.function_code,
-                        'start_register': device.start_register,
-                        'register_count': device.register_count
+                # Prepare device config for Modbus service
+                device_config = {
+                    'id': device.id,
+                    'name': device.name,
+                    'slave_id': device.slave_id,
+                    'baud_rate': device.baud_rate,
+                    'com_port': device.com_port,
+                    'function_code': device.function_code,
+                    'start_register': device.start_register,
+                    'register_count': device.register_count
+                }
+
+                try:
+                    # Read temperature from device (in thread to avoid blocking)
+                    result = await asyncio.to_thread(
+                        modbus_service.read_temperature,
+                        device_config
+                    )
+
+                    # Prepare reading data
+                    reading_data = {
+                        'device_id': result['device_id'],
+                        'device_name': result['device_name'],
+                        'temperature': result['temperature'],
+                        'ambient_temp': result.get('ambient_temp'),
+                        'status': result['status'],
+                        'raw_hex': result['raw_hex'],
+                        'timestamp': datetime.fromisoformat(result['timestamp'])
                     }
 
-                    try:
-                        # Read temperature from device (in thread to avoid blocking)
-                        result = await asyncio.to_thread(
-                            modbus_service.read_temperature,
-                            device_config
-                        )
+                    # Add to buffer (will be saved to DB when buffer is full)
+                    reading_buffer.add_reading(reading_data)
 
-                        # Prepare reading data
-                        reading_data = {
+                    # Broadcast to WebSocket clients immediately for real-time updates
+                    await websocket_manager.broadcast({
+                        'type': 'reading_update',
+                        'data': {
                             'device_id': result['device_id'],
                             'device_name': result['device_name'],
                             'temperature': result['temperature'],
                             'ambient_temp': result.get('ambient_temp'),
                             'status': result['status'],
                             'raw_hex': result['raw_hex'],
-                            'timestamp': datetime.fromisoformat(result['timestamp'])
+                            'timestamp': result['timestamp'],
+                            'error_message': result.get('error_message', '')
                         }
+                    })
 
-                        # Add to buffer (will be saved to DB when buffer is full)
-                        reading_buffer.add_reading(reading_data)
+                    # Only log errors, not successful reads (too verbose)
+                    if result['status'] != 'OK':
+                        logger.warning(f"Device {device.name}: Error - {result['error_message']}")
 
-                        # Broadcast to WebSocket clients immediately for real-time updates
-                        await websocket_manager.broadcast({
-                            'type': 'reading_update',
-                            'data': {
-                                'device_id': result['device_id'],
-                                'device_name': result['device_name'],
-                                'temperature': result['temperature'],
-                                'ambient_temp': result.get('ambient_temp'),
-                                'status': result['status'],
-                                'raw_hex': result['raw_hex'],
-                                'timestamp': result['timestamp'],
-                                'error_message': result.get('error_message', '')
-                            }
-                        })
-
-                        # Only log errors, not successful reads (too verbose)
-                        if result['status'] != 'OK':
-                            logger.warning(f"Device {device.name}: Error - {result['error_message']}")
-
-                    except Exception as device_error:
-                        logger.error(f"Error reading device {device.name} (ID:{device.id}): {device_error}", exc_info=True)
-
-                    # Longer delay between device reads for RS485 bus stability
-                    # CRITICAL: With 12 devices on bus, need time for previous device to stop transmitting
-                    # 500ms ensures clean communication when multiple devices are physically connected
-                    await asyncio.sleep(0.5)  # 500ms delay between devices (increased from 100ms)
+                except Exception as device_error:
+                    logger.error(f"Error reading device {device.name} (ID:{device.id}): {device_error}", exc_info=True)
 
                 # Calculate cycle time
                 cycle_end = datetime.now()
                 cycle_duration = (cycle_end - cycle_start).total_seconds()
 
-                # Calculate dynamic poll interval based on number of enabled devices
-                num_devices = len(devices)
-                poll_interval = self._calculate_dynamic_interval(num_devices)
+                # Log cycle time every 100 cycles for monitoring (reduced from 1000 for better visibility)
+                if self.cycle_count % 100 == 0:
+                    logger.info(f"Cycle #{self.cycle_count} completed in {cycle_duration:.2f}s (Continuous mode - 1 read/second)")
 
-                # Only log cycle time every 500 cycles or if there's a performance issue
-                if self.cycle_count % 500 == 0:
-                    if settings.modbus_enable_dynamic_polling:
-                        logger.info(f"Cycle #{self.cycle_count} completed in {cycle_duration:.2f}s (Dynamic interval: {poll_interval:.2f}s for {num_devices} device(s))")
-                    else:
-                        logger.info(f"Cycle #{self.cycle_count} completed in {cycle_duration:.2f}s (Static interval: {poll_interval:.2f}s)")
+                # Delay between reads: 1 second (1 read per second)
+                # This provides real-time data without overwhelming the database
+                # The pyrometer device typically can't respond faster than this anyway
+                await asyncio.sleep(1.0)  # 1 second = 1 read/second
 
-                # Log dynamic interval on first cycle for visibility
-                if self.cycle_count == 1:
-                    if settings.modbus_enable_dynamic_polling:
-                        logger.info(f"Dynamic polling ENABLED - Poll interval: {poll_interval:.2f}s for {num_devices} device(s)")
-                        logger.info(f"  Config: min={settings.modbus_min_poll_interval}s, max={settings.modbus_max_poll_interval}s, per_device={settings.modbus_per_device_time}s, safety_factor={settings.modbus_safety_factor}")
-                    else:
-                        logger.info(f"Dynamic polling DISABLED - Using static interval: {poll_interval}s")
-
-                # Log performance warning if cycle took too long
-                if cycle_duration > poll_interval * 3:  # Only if 3x slower than calculated interval
-                    logger.warning(f"Polling cycle #{self.cycle_count} took {cycle_duration:.2f}s (expected ~{poll_interval:.2f}s) - Performance degraded!")
-
-                # If cycle took longer than interval, don't wait (already behind schedule)
-                if cycle_duration < poll_interval:
-                    await asyncio.sleep(poll_interval - cycle_duration)
-                else:
-                    await asyncio.sleep(0.1)  # Minimal delay to prevent CPU overload
-                
             except asyncio.CancelledError:
-                logger.info("Polling loop cancelled")
+                logger.info("Continuous reading loop cancelled")
                 break
             except Exception as e:
                 logger.error("=" * 60)
-                logger.error(f"CRITICAL ERROR in polling loop (cycle #{self.cycle_count}): {type(e).__name__}: {e}")
+                logger.error(f"CRITICAL ERROR in continuous reading loop (cycle #{self.cycle_count}): {type(e).__name__}: {e}")
                 logger.error("=" * 60, exc_info=True)
                 logger.error("Waiting 5 seconds before retry...")
                 await asyncio.sleep(5)  # Wait before retrying
 
-        logger.info("Polling loop ended")
+        logger.info("Continuous reading loop ended")
     
     def get_stats(self) -> dict:
         """

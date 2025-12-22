@@ -2,17 +2,20 @@ import { useState, useEffect } from 'react';
 import { configAPI } from '../services/api';
 
 function ConfigModal({ isOpen, onClose, devices, onSave }) {
-    const [configDevices, setConfigDevices] = useState([]);
     const [availableComPorts, setAvailableComPorts] = useState([]);
     const [showPinDialog, setShowPinDialog] = useState(true);
     const [pinInput, setPinInput] = useState('');
     const [pinError, setPinError] = useState('');
     const [isPinVerified, setIsPinVerified] = useState(false);
 
-
-    // Common configuration fields for all devices
-    const [commonConfig, setCommonConfig] = useState({
+    // Single device configuration (slave ID fixed to 1)
+    const [deviceConfig, setDeviceConfig] = useState({
+        name: 'Pyrometer',
+        slave_id: 1, // Fixed to 1 for single device
+        baud_rate: 9600,
         com_port: 'COM3',
+        enabled: true,
+        show_in_graph: true,
         graph_y_min: 600,
         graph_y_max: 2000
     });
@@ -30,9 +33,9 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
     useEffect(() => {
         if (isOpen && isPinVerified) {
-            initializeDevices();
+            initializeDevice();
         }
-    }, [isOpen, isPinVerified, devices]);
+    }, [isOpen, isPinVerified, devices, availableComPorts]);
 
     const fetchComPorts = async () => {
         try {
@@ -42,7 +45,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
 
             // Set default COM port if available
             if (data.ports && data.ports.length > 0) {
-                setCommonConfig(prev => ({
+                setDeviceConfig(prev => ({
                     ...prev,
                     com_port: data.ports[0].port
                 }));
@@ -77,41 +80,33 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
         }
     };
 
-    const initializeDevices = async () => {
+    const initializeDevice = async () => {
         try {
             if (devices && devices.length > 0) {
-                // Load existing devices from database
-                console.log('Loading devices from backend:', devices);
-                // Extract common config from the first device
-                if (devices[0]) {
-                    setCommonConfig({
-                        com_port: devices[0].com_port || (availableComPorts[0]?.port || 'COM3'),
-                        graph_y_min: devices[0].graph_y_min !== null && devices[0].graph_y_min !== undefined ? devices[0].graph_y_min : 600,
-                        graph_y_max: devices[0].graph_y_max !== null && devices[0].graph_y_max !== undefined ? devices[0].graph_y_max : 2000
-                    });
-                }
-                setConfigDevices(devices);
+                // Load existing device from database (first device if multiple exist)
+                console.log('Loading device from backend:', devices[0]);
+                const existingDevice = devices[0];
+                setDeviceConfig({
+                    id: existingDevice.id,
+                    name: existingDevice.name || 'Pyrometer',
+                    slave_id: 1, // Always 1 for single device
+                    baud_rate: existingDevice.baud_rate || 9600,
+                    com_port: existingDevice.com_port || (availableComPorts[0]?.port || 'COM3'),
+                    enabled: true,
+                    show_in_graph: true,
+                    graph_y_min: existingDevice.graph_y_min !== null && existingDevice.graph_y_min !== undefined ? existingDevice.graph_y_min : 600,
+                    graph_y_max: existingDevice.graph_y_max !== null && existingDevice.graph_y_max !== undefined ? existingDevice.graph_y_max : 2000
+                });
             } else {
-                // Start with one empty row if no devices exist
-                setConfigDevices([createNewDevice(1)]);
+                // Use default values if no device exists
+                console.log('No existing device, using defaults');
             }
         } catch (err) {
-            console.error('Error initializing devices:', err);
+            console.error('Error initializing device:', err);
         }
     };
 
-    const createNewDevice = (deviceNum) => {
-        return {
-            id: null, // null for new devices (not yet in DB)
-            name: `Device ${deviceNum}`,
-            slave_id: deviceNum,
-            baud_rate: 9600,
-            enabled: true,
-            show_in_graph: false
-        };
-    };
-
-    const handleCommonConfigChange = (field, value) => {
+    const handleConfigChange = (field, value) => {
         // Validate Y-range values
         if (field === 'graph_y_min' || field === 'graph_y_max') {
             const numValue = parseFloat(value);
@@ -121,121 +116,30 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                 value = 2000;
             }
         }
-        setCommonConfig({ ...commonConfig, [field]: value });
+        setDeviceConfig({ ...deviceConfig, [field]: value });
     };
 
-    // Validation helper functions
+    // Validation helper function
     const getValidationErrors = () => {
         const errors = [];
-        const slaveIds = new Set();
-        const names = new Set();
 
-        configDevices.forEach((device, index) => {
-            // Check for duplicate slave IDs
-            if (slaveIds.has(device.slave_id)) {
-                errors.push(`Row ${index + 1}: Duplicate Instrument ID ${device.slave_id}`);
-            } else {
-                slaveIds.add(device.slave_id);
-            }
-
-            // Check for duplicate names
-            const trimmedName = device.name.trim();
-            if (names.has(trimmedName)) {
-                errors.push(`Row ${index + 1}: Duplicate device name "${trimmedName}"`);
-            } else {
-                names.add(trimmedName);
-            }
-
-            // Check slave_id range (1-16)
-            if (device.slave_id < 1 || device.slave_id > 16) {
-                errors.push(`Row ${index + 1}: Instrument ID must be between 1 and 16`);
-            }
-        });
+        // Check device name
+        if (!deviceConfig.name || deviceConfig.name.trim() === '') {
+            errors.push('Device name cannot be empty');
+        }
 
         // Check Y-range
-        if (commonConfig.graph_y_min < 600 || commonConfig.graph_y_min > 2000) {
+        if (deviceConfig.graph_y_min < 600 || deviceConfig.graph_y_min > 2000) {
             errors.push('Graph Y-Min must be between 600 and 2000');
         }
-        if (commonConfig.graph_y_max < 600 || commonConfig.graph_y_max > 2000) {
+        if (deviceConfig.graph_y_max < 600 || deviceConfig.graph_y_max > 2000) {
             errors.push('Graph Y-Max must be between 600 and 2000');
         }
-        if (commonConfig.graph_y_max <= commonConfig.graph_y_min) {
+        if (deviceConfig.graph_y_max <= deviceConfig.graph_y_min) {
             errors.push('Graph Y-Max must be greater than Y-Min');
         }
 
         return errors;
-    };
-
-    // Check if a slave_id is duplicate
-    const isDuplicateSlaveId = (index) => {
-        const currentSlaveId = configDevices[index].slave_id;
-        return configDevices.some((device, i) => i !== index && device.slave_id === currentSlaveId);
-    };
-
-    // Check if a name is duplicate
-    const isDuplicateName = (index) => {
-        const currentName = configDevices[index].name.trim();
-        return configDevices.some((device, i) => i !== index && device.name.trim() === currentName);
-    };
-
-    const handleChange = (index, field, value) => {
-        const updated = [...configDevices];
-
-        // Enforce slave_id range (1-16)
-        if (field === 'slave_id') {
-            const numValue = parseInt(value) || 1;
-            if (numValue < 1) {
-                value = 1;
-            } else if (numValue > 16) {
-                value = 16;
-            } else {
-                value = numValue;
-            }
-        }
-
-        updated[index] = { ...updated[index], [field]: value };
-        setConfigDevices(updated);
-    };
-
-    const handleToggleEnable = (index) => {
-        const updated = [...configDevices];
-        updated[index] = { ...updated[index], enabled: !updated[index].enabled };
-        // If disabling a device, also uncheck graph
-        if (!updated[index].enabled) {
-            updated[index].show_in_graph = false;
-        }
-        setConfigDevices(updated);
-    };
-
-    const handleToggleGraph = (index) => {
-        const updated = [...configDevices];
-        // Only allow toggling graph if device is enabled
-        if (updated[index].enabled) {
-            updated[index] = { ...updated[index], show_in_graph: !updated[index].show_in_graph };
-            setConfigDevices(updated);
-        }
-    };
-
-    const handleAddRow = () => {
-        if (configDevices.length < 16) {
-            // Find the next available slave_id (1-16)
-            const existingSlaveIds = configDevices.map(d => d.slave_id);
-            let nextSlaveId = 1;
-            while (existingSlaveIds.includes(nextSlaveId) && nextSlaveId <= 16) {
-                nextSlaveId++;
-            }
-            // If all IDs 1-16 are taken, default to 1 (user will need to fix the duplicate)
-            if (nextSlaveId > 16) {
-                nextSlaveId = 1;
-            }
-            setConfigDevices([...configDevices, createNewDevice(nextSlaveId)]);
-        }
-    };
-
-    const handleDeleteRow = (index) => {
-        const updated = configDevices.filter((_, i) => i !== index);
-        // Keep existing slave_ids, don't reassign them
-        setConfigDevices(updated);
     };
 
 
@@ -247,16 +151,11 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
             return;
         }
 
-        // Apply common config to all devices before saving
-        const devicesWithCommonConfig = configDevices.map(device => ({
-            ...device,
-            ...commonConfig
-        }));
-        console.log('=== ConfigModal: Saving Configuration ===');
-        console.log('Common Config:', commonConfig);
-        console.log('Devices with Common Config applied:', devicesWithCommonConfig);
-        console.log('Each device COM port:', devicesWithCommonConfig.map(d => ({ name: d.name, com_port: d.com_port })));
-        onSave(devicesWithCommonConfig);
+        console.log('=== ConfigModal: Saving Single Device Configuration ===');
+        console.log('Device Config:', deviceConfig);
+
+        // Send as array with single device for backend compatibility
+        onSave([deviceConfig]);
         onClose();
     };
 
@@ -354,28 +253,37 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-auto p-4">
-                    <div className="mb-4 text-sm text-gray-600">
-                        Add devices one by one (maximum 16 devices). Use the + button to add new rows, - button to delete rows, and toggle to enable/disable devices. Toggle to enable, select if graph is needed and add name of the location of pyrometer, enter <strong>unique Instrument ID from 1-16</strong> (no duplicates allowed), and baud rate depending on ID and baud rate entered in the respective pyrometer. <strong>Device names must also be unique.</strong>
+                <div className="flex-1 overflow-auto p-6">
+                    <div className="mb-6 text-sm text-gray-600 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        Configure your single pyrometer device. The Instrument ID is fixed to <strong>1</strong> for single-device mode.
                         <br/><br/>
                         <strong>Note:</strong> To configure device parameters like emissivity, use the <strong>Pyrometer Settings</strong> option from the navigation bar.
                     </div>
 
-                    {/* Common Configuration Section */}
-                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center">
-                            <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                            </svg>
-                            Common Configuration (Applied to All Devices)
-                        </h3>
+                    {/* Single Device Configuration Form */}
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Device Name
+                            </label>
+                            <input
+                                type="text"
+                                value={deviceConfig.name}
+                                onChange={(e) => handleConfigChange('name', e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Enter device name (e.g., Furnace 1, Kiln A)"
+                            />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">COM Port</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    COM Port
+                                </label>
                                 <select
-                                    value={commonConfig.com_port}
-                                    onChange={(e) => handleCommonConfigChange('com_port', e.target.value)}
-                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
+                                    value={deviceConfig.com_port}
+                                    onChange={(e) => handleConfigChange('com_port', e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 >
                                     {availableComPorts.length > 0 ? (
                                         availableComPorts.map((port, idx) => (
@@ -393,161 +301,89 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                     </p>
                                 )}
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-700 mb-1">Graph Y-Min (°C)</label>
-                                    <input
-                                        type="number"
-                                        value={commonConfig.graph_y_min}
-                                        onChange={(e) => handleCommonConfigChange('graph_y_min', parseFloat(e.target.value) || 600)}
-                                        className={`w-full px-2 py-1.5 text-sm border rounded bg-white ${
-                                            commonConfig.graph_y_min < 600 || commonConfig.graph_y_min > 2000 ? 'border-red-500 border-2' : 'border-gray-300'
-                                        }`}
-                                        min="600"
-                                        max="2000"
-                                        step="50"
-                                        placeholder="600"
-                                        title="Must be between 600-2000"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-700 mb-1">Graph Y-Max (°C)</label>
-                                    <input
-                                        type="number"
-                                        value={commonConfig.graph_y_max}
-                                        onChange={(e) => handleCommonConfigChange('graph_y_max', parseFloat(e.target.value) || 2000)}
-                                        className={`w-full px-2 py-1.5 text-sm border rounded bg-white ${
-                                            commonConfig.graph_y_max < 600 || commonConfig.graph_y_max > 2000 || commonConfig.graph_y_max <= commonConfig.graph_y_min ? 'border-red-500 border-2' : 'border-gray-300'
-                                        }`}
-                                        min="600"
-                                        max="2000"
-                                        step="50"
-                                        placeholder="2000"
-                                        title="Must be between 600-2000 and greater than Y-Min"
-                                    />
-                                </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Baud Rate
+                                </label>
+                                <select
+                                    value={deviceConfig.baud_rate}
+                                    onChange={(e) => handleConfigChange('baud_rate', parseInt(e.target.value))}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    <option value="1200">1200</option>
+                                    <option value="2400">2400</option>
+                                    <option value="4800">4800</option>
+                                    <option value="9600">9600</option>
+                                    <option value="19200">19200</option>
+                                    <option value="38400">38400</option>
+                                    <option value="57600">57600</option>
+                                    <option value="115200">115200</option>
+                                </select>
                             </div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                            Note: Register settings are configured in backend .env file
-                        </p>
-                    </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full border-collapse border border-gray-300">
-                            <thead className="bg-gray-100 sticky top-0">
-                                <tr>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Sr No </th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Enable</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Graph</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Name</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Instrument ID (1 -16) </th>
-                                    <th className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold">Baud Rate</th>
-                                    <th className="border border-gray-300 px-2 py-2 text-center text-xs font-semibold">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {configDevices.map((device, index) => (
-                                    <tr key={index} className={device.enabled ? "bg-blue-50" : "bg-white"}>
-                                        <td className="border border-gray-300 px-2 py-2 text-center font-semibold text-sm">
-                                            {index + 1}
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2 text-center">
-                                            <button
-                                                onClick={() => handleToggleEnable(index)}
-                                                className={`w-12 h-6 rounded-full transition ${device.enabled ? 'bg-green-500' : 'bg-gray-300'}`}
-                                            >
-                                                <div className={`w-5 h-5 bg-white rounded-full shadow transform transition ${device.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                                            </button>
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2 text-center">
-                                            {device.enabled ? (
-                                                <input
-                                                    type="checkbox"
-                                                    checked={device.show_in_graph || false}
-                                                    onChange={() => handleToggleGraph(index)}
-                                                    className="w-5 h-5 cursor-pointer accent-blue-600"
-                                                    title="Show in graph"
-                                                />
-                                            ) : (
-                                                <span className="text-gray-300 text-xs">—</span>
-                                            )}
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2">
-                                            <input
-                                                type="text"
-                                                value={device.name}
-                                                onChange={(e) => handleChange(index, 'name', e.target.value)}
-                                                className={`w-full px-2 py-1 text-sm border rounded bg-white ${
-                                                    isDuplicateName(index) ? 'border-red-500 border-2' : ''
-                                                }`}
-                                                placeholder="Device Name"
-                                                title={isDuplicateName(index) ? 'Duplicate device name!' : ''}
-                                            />
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2">
-                                            <input
-                                                type="number"
-                                                value={device.slave_id}
-                                                onChange={(e) => handleChange(index, 'slave_id', parseInt(e.target.value) || 1)}
-                                                className={`w-20 px-2 py-1 text-sm border rounded bg-white ${
-                                                    isDuplicateSlaveId(index) || device.slave_id < 1 || device.slave_id > 16 ? 'border-red-500 border-2' : ''
-                                                }`}
-                                                min="1"
-                                                max="16"
-                                                title={
-                                                    isDuplicateSlaveId(index) ? 'Duplicate Instrument ID!' :
-                                                    (device.slave_id < 1 || device.slave_id > 16) ? 'Must be between 1-16' : ''
-                                                }
-                                            />
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2">
-                                            <select
-                                                value={device.baud_rate}
-                                                onChange={(e) => handleChange(index, 'baud_rate', parseInt(e.target.value))}
-                                                className="w-24 px-2 py-1 text-sm border rounded bg-white"
-                                            >
-                                                <option value="1200">1200</option>
-                                                <option value="2400">2400</option>
-                                                <option value="4800">4800</option>
-                                                <option value="9600">9600</option>
-                                                <option value="19200">19200</option>
-                                                <option value="38400">38400</option>
-                                                <option value="57600">57600</option>
-                                                <option value="115200">115200</option>
-                                            </select>
-                                        </td>
-                                        <td className="border border-gray-300 px-2 py-2 text-center">
-                                            {index === configDevices.length - 1 && configDevices.length < 16 ? (
-                                                <button
-                                                    onClick={handleAddRow}
-                                                    className="w-8 h-8 bg-green-500 text-white rounded-full hover:bg-green-600 transition flex items-center justify-center mx-auto font-bold text-lg"
-                                                    title="Add new device"
-                                                >
-                                                    +
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleDeleteRow(index)}
-                                                    className="w-8 h-8 bg-red-500 text-white rounded-full hover:bg-red-600 transition flex items-center justify-center mx-auto font-bold text-lg"
-                                                    title="Delete device"
-                                                >
-                                                    -
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Instrument ID (Slave ID)
+                            </label>
+                            <div className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600">
+                                1 (Fixed for single device mode)
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Graph Y-Min (°C)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={deviceConfig.graph_y_min}
+                                    onChange={(e) => handleConfigChange('graph_y_min', parseFloat(e.target.value) || 600)}
+                                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                        deviceConfig.graph_y_min < 600 || deviceConfig.graph_y_min > 2000 ? 'border-red-500 border-2' : 'border-gray-300'
+                                    }`}
+                                    min="600"
+                                    max="2000"
+                                    step="50"
+                                    placeholder="600"
+                                    title="Must be between 600-2000"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Range: 600-2000°C</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Graph Y-Max (°C)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={deviceConfig.graph_y_max}
+                                    onChange={(e) => handleConfigChange('graph_y_max', parseFloat(e.target.value) || 2000)}
+                                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                        deviceConfig.graph_y_max < 600 || deviceConfig.graph_y_max > 2000 || deviceConfig.graph_y_max <= deviceConfig.graph_y_min ? 'border-red-500 border-2' : 'border-gray-300'
+                                    }`}
+                                    min="600"
+                                    max="2000"
+                                    step="50"
+                                    placeholder="2000"
+                                    title="Must be between 600-2000 and greater than Y-Min"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Range: 600-2000°C, must be {'>'} Y-Min</p>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                            <p className="text-xs text-gray-600">
+                                <strong>Note:</strong> Register settings (register address, function code, etc.) are configured in the backend .env file.
+                            </p>
+                        </div>
                     </div>
                 </div>
 
                 <div className="flex items-center justify-between p-4 border-t bg-gray-50">
                     <div className="text-sm text-gray-600">
-                        <span className="font-semibold">{configDevices.filter(d => d.enabled).length}</span> enabled /
-                        <span className="font-semibold ml-2">{configDevices.filter(d => d.show_in_graph).length}</span> in graph /
-                        <span className="font-semibold ml-2">{configDevices.length}</span> total
+                        <span className="font-semibold">Single Device Mode</span> - Instrument ID: 1
                     </div>
                     <div className="flex space-x-3">
                         <button

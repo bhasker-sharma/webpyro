@@ -324,7 +324,7 @@ async def get_filtered_readings(
     device_id: int,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    limit: Optional[int] = None,
+    limit: Optional[int] = 5000,  # Default limit to 5000 records to prevent overwhelming frontend
     db: Session = Depends(get_db)
 ):
     """
@@ -334,7 +334,7 @@ async def get_filtered_readings(
         - device_id: Device ID to filter readings
         - start_date: Start datetime in ISO format (e.g., 2024-01-01T00:00:00)
         - end_date: End datetime in ISO format (e.g., 2024-01-31T23:59:59)
-        - limit: Optional maximum number of readings to return (no limit if not specified)
+        - limit: Maximum number of readings to return (default 5000, prevents overwhelming frontend)
     """
     # Parse datetime strings if provided
     start_dt = None

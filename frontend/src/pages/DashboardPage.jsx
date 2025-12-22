@@ -40,7 +40,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
         // Listen for real-time reading updates
         const handleReadingUpdate = (data) => {
             // Check for ambient temperature alarm (> 65°C)
-            const AMBIENT_TEMP_THRESHOLD = 65;
+            const AMBIENT_TEMP_THRESHOLD = 39;
             if (data.ambient_temp !== null && data.ambient_temp !== undefined && data.ambient_temp >= AMBIENT_TEMP_THRESHOLD) {
                 setActiveAlarms(prev => {
                     const newAlarms = new Set(prev);
@@ -322,20 +322,17 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
 
                                 <div className="flex items-center space-x-2">
                                     <span className={`w-2 h-2 rounded-full ${pollingStats.is_running ? 'bg-blue-500 animate-pulse' : 'bg-gray-500'}`}></span>
-                                    <span className="text-gray-600">Polling: {pollingStats.is_running ? 'Active' : 'Stopped'}</span>
+                                    <span className="text-gray-600">Continuous Reading: {pollingStats.is_running ? 'Active' : 'Stopped'}</span>
                                 </div>
-                                {/* <div className="text-gray-600">
-                                    Cycle: <span className="font-semibold text-gray-800">{pollingStats.cycle_count}</span>
-                                </div> */}
+                                <div className="text-gray-600">
+                                    Reads: <span className="font-semibold text-gray-800">{pollingStats.cycle_count}</span>
+                                </div>
                                 <div className="text-gray-600">
                                     Buffer: <span className="font-semibold text-gray-800">{pollingStats.buffer_stats?.buffer_a_size + pollingStats.buffer_stats?.buffer_b_size || 0}</span>/{pollingStats.buffer_stats?.max_size || 100}
                                 </div>
-                                {/* <div className="text-gray-600">
-                                    Saved: <span className="font-semibold text-gray-800">{pollingStats.buffer_stats?.total_saved || 0}</span>
-                                </div> */}
                             </div>
                             <div className="text-xs text-gray-500">
-                                Real-time mode
+                                Single device mode - No polling intervals
                             </div>
                         </div>
                     </div>
@@ -352,9 +349,9 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                 </svg>
-                                <span>Devices</span>
+                                <span>Pyrometer Device</span>
                             </h2>
-                            <span className="text-xs text-gray-500">{devices.length} / 16</span>
+                            <span className="text-xs text-gray-500 bg-blue-100 px-2 py-1 rounded">Single Device Mode</span>
                         </div>
 
                         <div className={`grid ${getGridColumns()} auto-rows-fr gap-2 flex-1 overflow-hidden min-h-0`}>
@@ -372,8 +369,8 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                                     <svg className="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                     </svg>
-                                    <p className="text-gray-500 text-sm mb-1">No devices configured</p>
-                                    <p className="text-gray-400 text-xs">Click "Configure Devices" to add devices</p>
+                                    <p className="text-gray-500 text-sm mb-1">No device configured</p>
+                                    <p className="text-gray-400 text-xs">Click "Configure Device" to set up your pyrometer</p>
                                 </div>
                             ) : (
                                 devices.map((device) => {
