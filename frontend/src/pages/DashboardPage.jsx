@@ -41,7 +41,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
         // Listen for real-time reading updates
         const handleReadingUpdate = (data) => {
             // Check for ambient temperature alarm (> 65°C)
-            const AMBIENT_TEMP_THRESHOLD = 39;
+            const AMBIENT_TEMP_THRESHOLD = 65;
             if (data.ambient_temp !== null && data.ambient_temp !== undefined && data.ambient_temp >= AMBIENT_TEMP_THRESHOLD) {
                 setActiveAlarms(prev => {
                     const newAlarms = new Set(prev);
@@ -361,11 +361,10 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                             <div className="flex items-center space-x-3">
                                 <button
                                     onClick={pollingStats.is_running ? handlePausePolling : handleResumePolling}
-                                    className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                                        pollingStats.is_running
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${pollingStats.is_running
                                             ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
                                             : 'bg-green-500 hover:bg-green-600 text-white'
-                                    }`}
+                                        }`}
                                     title={pollingStats.is_running ? 'Pause data reading' : 'Resume data reading'}
                                 >
                                     {pollingStats.is_running ? (
