@@ -13,6 +13,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     const [error, setError] = useState(null);
     const [wsConnected, setWsConnected] = useState(false); // WebSocket connection state
     const [activeAlarms, setActiveAlarms] = useState(new Set()); // Track devices with active alarms
+    const [pollingPaused, setPollingPaused] = useState(false); // Manual polling control
 
     useEffect(() => {
         console.log('Dashboard mounted');
@@ -166,6 +167,32 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
             setPollingStats(stats);
         } catch (err) {
             console.error('Error fetching polling stats:', err);
+        }
+    };
+
+    const handlePausePolling = async () => {
+        try {
+            console.log('Pausing polling service...');
+            await pollingAPI.pause();
+            setPollingPaused(true);
+            await fetchPollingStats();
+            console.log('Polling paused successfully');
+        } catch (error) {
+            console.error('Error pausing polling:', error);
+            alert('Failed to pause polling service. Please try again.');
+        }
+    };
+
+    const handleResumePolling = async () => {
+        try {
+            console.log('Resuming polling service...');
+            await pollingAPI.resume();
+            setPollingPaused(false);
+            await fetchPollingStats();
+            console.log('Polling resumed successfully');
+        } catch (error) {
+            console.error('Error resuming polling:', error);
+            alert('Failed to resume polling service. Please try again.');
         }
     };
 
@@ -331,8 +358,33 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                                     Buffer: <span className="font-semibold text-gray-800">{pollingStats.buffer_stats?.buffer_a_size + pollingStats.buffer_stats?.buffer_b_size || 0}</span>/{pollingStats.buffer_stats?.max_size || 100}
                                 </div>
                             </div>
-                            <div className="text-xs text-gray-500">
-                                Single device mode - No polling intervals
+                            <div className="flex items-center space-x-3">
+                                <button
+                                    onClick={pollingStats.is_running ? handlePausePolling : handleResumePolling}
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                        pollingStats.is_running
+                                            ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                                            : 'bg-green-500 hover:bg-green-600 text-white'
+                                    }`}
+                                    title={pollingStats.is_running ? 'Pause data reading' : 'Resume data reading'}
+                                >
+                                    {pollingStats.is_running ? (
+                                        <span className="flex items-center space-x-1">
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                            <span>Pause Reading</span>
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center space-x-1">
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                            </svg>
+                                            <span>Resume Reading</span>
+                                        </span>
+                                    )}
+                                </button>
+                                <span className="text-xs text-gray-500">Single device mode</span>
                             </div>
                         </div>
                     </div>

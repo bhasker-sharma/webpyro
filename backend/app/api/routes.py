@@ -444,16 +444,14 @@ async def export_readings_csv(
     # Row 2: Total data points
     writer.writerow([f"Total Data Points: {len(readings)}"])
 
-    # Row 3: Date range (display in IST to match frontend preview)
+    # Row 3: Date range (display database time without timezone conversion)
     if start_dt:
-        start_ist = utc_to_ist(start_dt)
-        start_date_str = start_ist.strftime("%Y-%m-%d %H:%M:%S IST")
+        start_date_str = start_dt.strftime("%Y-%m-%d %H:%M:%S")
     else:
         start_date_str = "Beginning"
 
     if end_dt:
-        end_ist = utc_to_ist(end_dt)
-        end_date_str = end_ist.strftime("%Y-%m-%d %H:%M:%S IST")
+        end_date_str = end_dt.strftime("%Y-%m-%d %H:%M:%S")
     else:
         end_date_str = "End"
 
@@ -462,15 +460,14 @@ async def export_readings_csv(
     # Row 4: Empty row
     writer.writerow([])
 
-    # Row 5: Column headers (IST to match frontend preview)
-    writer.writerow(['Serial Number', 'Database ID', 'Date (IST)', 'Time (IST)', 'Temperature', 'Ambient Temp', 'Status'])
+    # Row 5: Column headers (raw database time to match frontend preview)
+    writer.writerow(['Serial Number', 'Database ID', 'Date', 'Time', 'Temperature', 'Ambient Temp', 'Status'])
 
     # Write data rows
     for idx, reading in enumerate(readings, start=1):
-        # Convert UTC timestamp to IST (to match what user sees in preview)
-        ist_dt = utc_to_ist(reading.ts_utc)
-        date_str = ist_dt.strftime("%Y-%m-%d")
-        time_str = ist_dt.strftime("%H:%M:%S")
+        # Use raw UTC timestamp (display without timezone conversion to match preview)
+        date_str = reading.ts_utc.strftime("%Y-%m-%d")
+        time_str = reading.ts_utc.strftime("%H:%M:%S")
 
         writer.writerow([
             idx,  # Serial number starting from 1
@@ -485,14 +482,19 @@ async def export_readings_csv(
     # Prepare response
     output.seek(0)
 
-    # Filename with device name and IST timestamp (to match user's timezone)
-    filename_time = utc_to_ist(utc_now())
+    # Filename with device name and timestamp
+    filename_time = utc_now()
     filename = f"{device_name}_readings_{filename_time.strftime('%Y%m%d_%H%M%S')}.csv"
 
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*"
+        }
     )
 
 @router.get("/reading/export/pdf")
@@ -644,11 +646,9 @@ async def export_readings_pdf(
         alignment=TA_CENTER
     )
 
-    # Date range subtitle (IST to match frontend)
+    # Date range subtitle (raw database time to match frontend preview)
     if start_dt and end_dt:
-        start_ist = utc_to_ist(start_dt)
-        end_ist = utc_to_ist(end_dt)
-        date_range = f"{start_ist.strftime('%d/%m/%Y %H:%M')} to {end_ist.strftime('%d/%m/%Y %H:%M')} (IST)"
+        date_range = f"{start_dt.strftime('%d/%m/%Y %H:%M')} to {end_dt.strftime('%d/%m/%Y %H:%M')}"
     else:
         date_range = "All Records"
 
@@ -658,14 +658,13 @@ async def export_readings_pdf(
 
     # Table data
     table_data = [
-        ['S.No', 'Date (IST)', 'Time (IST)', 'Temperature (°C)', 'Ambient Temp (°C)', 'Status']
+        ['S.No', 'Date', 'Time', 'Temperature (°C)', 'Ambient Temp (°C)', 'Status']
     ]
 
     for idx, reading in enumerate(readings, start=1):
-        # Convert UTC timestamp to IST
-        ist_dt = utc_to_ist(reading.ts_utc)
-        date_str = ist_dt.strftime("%d/%m/%Y")
-        time_str = ist_dt.strftime("%H:%M:%S")
+        # Use raw UTC timestamp (display without timezone conversion to match preview)
+        date_str = reading.ts_utc.strftime("%d/%m/%Y")
+        time_str = reading.ts_utc.strftime("%H:%M:%S")
 
         ambient_temp_str = f"{reading.ambient_temp:.1f}" if reading.ambient_temp is not None else 'N/A'
 
@@ -710,14 +709,19 @@ async def export_readings_pdf(
     # Prepare response
     pdf_buffer.seek(0)
 
-    # Filename with device name and IST timestamp
-    filename_time = utc_to_ist(utc_now())
+    # Filename with device name and timestamp
+    filename_time = utc_now()
     filename = f"{device_name}_report_{filename_time.strftime('%Y%m%d_%H%M%S')}.pdf"
 
     return StreamingResponse(
         iter([pdf_buffer.getvalue()]),
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*"
+        }
     )
 
 @router.get("/debug/readings")

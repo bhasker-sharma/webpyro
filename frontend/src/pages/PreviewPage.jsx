@@ -20,13 +20,12 @@ const API_BASE_URL = getApiBaseUrl();
 function PreviewPage() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [selectedDevice, setSelectedDevice] = useState('');
-    const [devices, setDevices] = useState([]);
+    const [selectedDevice, setSelectedDevice] = useState(null); // Changed to store device object
     const [previewData, setPreviewData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Set default datetime values on mount
+    // Set default datetime values and load device on mount
     useEffect(() => {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0);
@@ -45,25 +44,32 @@ function PreviewPage() {
         setStartDate(formatDateTime(today));
         setEndDate(formatDateTime(endOfDay));
 
-        // Fetch devices on mount
-        fetchDevices();
+        // Auto-load configured device (single device mode)
+        fetchDevice();
     }, []);
 
-    const fetchDevices = async () => {
+    const fetchDevice = async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/devices`);
-            if (!response.ok) throw new Error('Failed to fetch devices');
+            if (!response.ok) throw new Error('Failed to fetch device');
             const data = await response.json();
-            setDevices(data);
+
+            // Auto-select the first (and only) device in single-device mode
+            if (data && data.length > 0) {
+                setSelectedDevice(data[0]);
+                console.log('Auto-loaded device:', data[0]);
+            } else {
+                setError('No device configured. Please configure a device first.');
+            }
         } catch (err) {
-            console.error('Error fetching devices:', err);
-            setError('Failed to load devices');
+            console.error('Error fetching device:', err);
+            setError('Failed to load device configuration');
         }
     };
 
     const handleFilter = async () => {
         if (!selectedDevice) {
-            setError('Please select a device');
+            setError('No device configured. Please configure a device first.');
             return;
         }
 
@@ -87,10 +93,11 @@ function PreviewPage() {
                 startUTC,
                 endLocal: endDate,
                 endUTC,
-                device_id: selectedDevice
+                device_id: selectedDevice.id,
+                device_name: selectedDevice.name
             });
 
-            const url = `${API_BASE_URL}/api/reading/filter?device_id=${selectedDevice}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
+            const url = `${API_BASE_URL}/api/reading/filter?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
             const response = await fetch(url);
 
             if (!response.ok) throw new Error('Failed to fetch readings');
@@ -100,7 +107,7 @@ function PreviewPage() {
             setPreviewData(data.readings || []);
 
             if (data.readings.length === 0) {
-                setError('No data found for the selected filters');
+                setError('No data found for the selected date range');
             }
         } catch (err) {
             console.error('Error filtering data:', err);
@@ -112,7 +119,7 @@ function PreviewPage() {
 
     const handleExportCSV = async () => {
         if (!selectedDevice) {
-            setError('Please select a device');
+            setError('No device configured. Please configure a device first.');
             return;
         }
 
@@ -126,10 +133,10 @@ function PreviewPage() {
             const startUTC = new Date(startDate).toISOString();
             const endUTC = new Date(endDate).toISOString();
 
-            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
+            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
 
             // Get device name for filename
-            const deviceName = devices.find(d => d.id == selectedDevice)?.name || 'device';
+            const deviceName = selectedDevice.name || 'device';
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
             const filename = `${deviceName}_readings_${timestamp}.csv`;
 
@@ -186,7 +193,7 @@ function PreviewPage() {
 
     const handleExportPDF = async () => {
         if (!selectedDevice) {
-            setError('Please select a device');
+            setError('No device configured. Please configure a device first.');
             return;
         }
 
@@ -200,10 +207,10 @@ function PreviewPage() {
             const startUTC = new Date(startDate).toISOString();
             const endUTC = new Date(endDate).toISOString();
 
-            const url = `${API_BASE_URL}/api/reading/export/pdf?device_id=${selectedDevice}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
+            const url = `${API_BASE_URL}/api/reading/export/pdf?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
 
             // Get device name for filename
-            const deviceName = devices.find(d => d.id == selectedDevice)?.name || 'device';
+            const deviceName = selectedDevice.name || 'device';
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
             const filename = `${deviceName}_report_${timestamp}.pdf`;
 
@@ -231,18 +238,32 @@ function PreviewPage() {
 
     const formatDateTime = (isoString) => {
         if (!isoString) return 'N/A';
+
+        // Parse the ISO string and display without timezone conversion
+        // This shows the database timestamp as-is (e.g., if DB shows 17:41, display shows 17:41)
         const date = new Date(isoString);
-        return date.toLocaleString();
+
+        // Extract date/time components without timezone conversion
+        // Use UTC methods to get the raw values from the timestamp
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        const hours = String(date.getUTCHours()).padStart(2, '0');
+        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+
+        return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
     };
 
     const formatTimeForGraph = (timestamp) => {
         const date = new Date(timestamp);
-        return date.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        });
+
+        // Use UTC methods to show time without timezone conversion
+        const hours = String(date.getUTCHours()).padStart(2, '0');
+        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+
+        return `${hours}:${minutes}:${seconds}`;
     };
 
     // Prepare graph data from preview data
@@ -288,7 +309,26 @@ function PreviewPage() {
                         <span>Filter Data</span>
                     </h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    {/* Device Info Banner */}
+                    {selectedDevice && (
+                        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center space-x-2">
+                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-blue-800">
+                                        Device: <span className="font-bold">{selectedDevice.name}</span> (ID: {selectedDevice.slave_id})
+                                    </p>
+                                    <p className="text-xs text-blue-600">
+                                        Select date range and click "Apply Filter" to view data
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         {/* Start Date */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -315,25 +355,6 @@ function PreviewPage() {
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 step="60"
                             />
-                        </div>
-
-                        {/* Device Selection */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Select Device
-                            </label>
-                            <select
-                                value={selectedDevice}
-                                onChange={(e) => setSelectedDevice(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                <option value="">-- Select a Device --</option>
-                                {devices.map((device) => (
-                                    <option key={device.id} value={device.id}>
-                                        {device.name}
-                                    </option>
-                                ))}
-                            </select>
                         </div>
                     </div>
 

@@ -111,6 +111,24 @@ export const pollingAPI = {
         const response = await api.post('/polling/restart');
         return response.data;
     },
+
+    /**
+     * Pause the polling service
+     * Stops live data reading while keeping software running
+     */
+    pause: async () => {
+        const response = await api.post('/polling/pause');
+        return response.data;
+    },
+
+    /**
+     * Resume the polling service
+     * Restarts live data reading
+     */
+    resume: async () => {
+        const response = await api.post('/polling/resume');
+        return response.data;
+    },
 };
 
 // ============================================================================
