@@ -133,7 +133,17 @@ function PreviewPage() {
             const startUTC = new Date(startDate).toISOString();
             const endUTC = new Date(endDate).toISOString();
 
-            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
+            // Format display dates (user's input format for header)
+            const formatDisplayDate = (dateTimeLocal) => {
+                const [datePart, timePart] = dateTimeLocal.split('T');
+                const [year, month, day] = datePart.split('-');
+                return `${day}-${month}-${year} ${timePart}`;
+            };
+
+            const startDisplay = formatDisplayDate(startDate);
+            const endDisplay = formatDisplayDate(endDate);
+
+            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}&start_date_display=${encodeURIComponent(startDisplay)}&end_date_display=${encodeURIComponent(endDisplay)}`;
 
             // Get device name for filename
             const deviceName = selectedDevice.name || 'device';
@@ -207,7 +217,17 @@ function PreviewPage() {
             const startUTC = new Date(startDate).toISOString();
             const endUTC = new Date(endDate).toISOString();
 
-            const url = `${API_BASE_URL}/api/reading/export/pdf?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
+            // Format display dates (user's input format for header)
+            const formatDisplayDate = (dateTimeLocal) => {
+                const [datePart, timePart] = dateTimeLocal.split('T');
+                const [year, month, day] = datePart.split('-');
+                return `${day}-${month}-${year} ${timePart}`;
+            };
+
+            const startDisplay = formatDisplayDate(startDate);
+            const endDisplay = formatDisplayDate(endDate);
+
+            const url = `${API_BASE_URL}/api/reading/export/pdf?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}&start_date_display=${encodeURIComponent(startDisplay)}&end_date_display=${encodeURIComponent(endDisplay)}`;
 
             // Get device name for filename
             const deviceName = selectedDevice.name || 'device';

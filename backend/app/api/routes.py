@@ -392,6 +392,8 @@ async def export_readings_csv(
     device_id: int,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    start_date_display: Optional[str] = None,
+    end_date_display: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -399,8 +401,10 @@ async def export_readings_csv(
 
     Query Parameters:
         - device_id: Device ID to filter readings
-        - start_date: Start datetime in ISO format
-        - end_date: End datetime in ISO format
+        - start_date: Start datetime in ISO format (for filtering)
+        - end_date: End datetime in ISO format (for filtering)
+        - start_date_display: Start datetime for display in header (user's original input)
+        - end_date_display: End datetime for display in header (user's original input)
     """
     # Parse datetime strings if provided
     start_dt = None
@@ -444,15 +448,15 @@ async def export_readings_csv(
     # Row 2: Total data points
     writer.writerow([f"Total Data Points: {len(readings)}"])
 
-    # Row 3: Date range (display database time without timezone conversion)
-    if start_dt:
+    # Row 3: Date range (use user's original input for display)
+    if start_date_display and end_date_display:
+        start_date_str = start_date_display
+        end_date_str = end_date_display
+    elif start_dt:
         start_date_str = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+        end_date_str = end_dt.strftime("%Y-%m-%d %H:%M:%S") if end_dt else "End"
     else:
         start_date_str = "Beginning"
-
-    if end_dt:
-        end_date_str = end_dt.strftime("%Y-%m-%d %H:%M:%S")
-    else:
         end_date_str = "End"
 
     writer.writerow([f"{start_date_str} - {end_date_str}"])
@@ -502,6 +506,8 @@ async def export_readings_pdf(
     device_id: int,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    start_date_display: Optional[str] = None,
+    end_date_display: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -509,8 +515,10 @@ async def export_readings_pdf(
 
     Query Parameters:
         - device_id: Device ID to filter readings
-        - start_date: Start datetime in ISO format
-        - end_date: End datetime in ISO format
+        - start_date: Start datetime in ISO format (for filtering)
+        - end_date: End datetime in ISO format (for filtering)
+        - start_date_display: Start datetime for display in header (user's original input)
+        - end_date_display: End datetime for display in header (user's original input)
     """
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib import colors
@@ -646,8 +654,10 @@ async def export_readings_pdf(
         alignment=TA_CENTER
     )
 
-    # Date range subtitle (raw database time to match frontend preview)
-    if start_dt and end_dt:
+    # Date range subtitle (use user's original input for display)
+    if start_date_display and end_date_display:
+        date_range = f"{start_date_display} to {end_date_display}"
+    elif start_dt and end_dt:
         date_range = f"{start_dt.strftime('%d/%m/%Y %H:%M')} to {end_dt.strftime('%d/%m/%Y %H:%M')}"
     else:
         date_range = "All Records"
