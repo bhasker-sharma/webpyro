@@ -224,15 +224,9 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
         setError(null);
 
         try {
-            // Step 1: Clear ALL existing device settings from database
-            // This ensures a clean state and forces reload from .env
-            console.log('Clearing all device settings from database...');
-            await configAPI.clearSettings();
-            console.log('All device settings cleared successfully');
-
-            // Step 2: Insert ONLY the devices from the table (with their enabled state)
-            // The backend will automatically load register settings from .env
-            console.log('Creating new devices from table:', configuredDevices);
+            // Step 1: Update or create devices based on configuration
+            // This preserves historical data by updating existing records instead of deleting them
+            console.log('Updating/creating devices from table:', configuredDevices);
 
             for (const device of configuredDevices) {
                 const devicePayload = {
@@ -250,8 +244,16 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                     graph_y_max: device.graph_y_max !== null && device.graph_y_max !== undefined ? device.graph_y_max : 2000,
                 };
 
-                await deviceAPI.create(devicePayload);
-                console.log(`Created device: ${device.name} (enabled: ${device.enabled}, show_in_graph: ${device.show_in_graph}, COM: ${device.com_port})`);
+                // Check if this device has an ID (existing device) or not (new device)
+                if (device.id) {
+                    // Update existing device by ID - this preserves all historical readings
+                    await deviceAPI.update(device.id, devicePayload);
+                    console.log(`Updated device ID ${device.id}: ${device.name} (enabled: ${device.enabled}, show_in_graph: ${device.show_in_graph}, COM: ${device.com_port})`);
+                } else {
+                    // Create new device (device doesn't have an ID yet)
+                    await deviceAPI.create(devicePayload);
+                    console.log(`Created new device: ${device.name} (enabled: ${device.enabled}, show_in_graph: ${device.show_in_graph}, COM: ${device.com_port})`);
+                }
             }
 
             // Step 3: Restart polling service to reload new device configs

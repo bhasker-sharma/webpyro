@@ -231,18 +231,23 @@ function PreviewPage() {
 
     const formatDateTime = (isoString) => {
         if (!isoString) return 'N/A';
-        const date = new Date(isoString);
-        return date.toLocaleString();
+        // Extract timestamp string without timezone conversion
+        // Format: "YYYY-MM-DD HH:MM:SS" exactly as stored in database
+        const timestamp = isoString.replace('T', ' ').replace('Z', '').split('.')[0];
+        return timestamp;
     };
 
     const formatTimeForGraph = (timestamp) => {
-        const date = new Date(timestamp);
-        return date.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        });
+        // Extract time portion without timezone conversion
+        if (typeof timestamp === 'string') {
+            // If timestamp is ISO string, extract time part
+            const timePart = timestamp.replace('T', ' ').replace('Z', '').split('.')[0].split(' ')[1];
+            return timePart || timestamp;
+        }
+        // If timestamp is a number (milliseconds), convert to ISO and extract time
+        const isoString = new Date(timestamp).toISOString();
+        const timePart = isoString.replace('T', ' ').replace('Z', '').split('.')[0].split(' ')[1];
+        return timePart;
     };
 
     // Prepare graph data from preview data
