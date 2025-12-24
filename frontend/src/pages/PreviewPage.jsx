@@ -76,21 +76,18 @@ function PreviewPage() {
         setError(null);
 
         try {
-            // Convert local datetime to UTC for backend
-            // The datetime-local input gives us "2025-11-24T14:00" which is in user's local timezone
-            // Convert to UTC timestamp string
-            const startUTC = new Date(startDate).toISOString();
-            const endUTC = new Date(endDate).toISOString();
+            // Send datetime as-is without timezone conversion
+            // Format: "YYYY-MM-DDTHH:MM:SS"
+            const startFormatted = startDate.replace(' ', 'T');
+            const endFormatted = endDate.replace(' ', 'T');
 
             console.log('Filter request:', {
-                startLocal: startDate,
-                startUTC,
-                endLocal: endDate,
-                endUTC,
+                startDate: startFormatted,
+                endDate: endFormatted,
                 device_id: selectedDevice
             });
 
-            const url = `${API_BASE_URL}/api/reading/filter?device_id=${selectedDevice}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
+            const url = `${API_BASE_URL}/api/reading/filter?device_id=${selectedDevice}&start_date=${encodeURIComponent(startFormatted)}&end_date=${encodeURIComponent(endFormatted)}`;
             const response = await fetch(url);
 
             if (!response.ok) throw new Error('Failed to fetch readings');
@@ -122,11 +119,12 @@ function PreviewPage() {
         }
 
         try {
-            // Convert local datetime to UTC for backend (same as filter)
-            const startUTC = new Date(startDate).toISOString();
-            const endUTC = new Date(endDate).toISOString();
+            // Send datetime as-is without timezone conversion
+            // Format: "YYYY-MM-DDTHH:MM:SS"
+            const startFormatted = startDate.replace(' ', 'T');
+            const endFormatted = endDate.replace(' ', 'T');
 
-            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
+            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice}&start_date=${encodeURIComponent(startFormatted)}&end_date=${encodeURIComponent(endFormatted)}`;
 
             // Get device name for filename
             const deviceName = devices.find(d => d.id == selectedDevice)?.name || 'device';
@@ -196,11 +194,12 @@ function PreviewPage() {
         }
 
         try {
-            // Convert local datetime to UTC for backend (same as CSV)
-            const startUTC = new Date(startDate).toISOString();
-            const endUTC = new Date(endDate).toISOString();
+            // Send datetime as-is without timezone conversion
+            // Format: "YYYY-MM-DDTHH:MM:SS"
+            const startFormatted = startDate.replace(' ', 'T');
+            const endFormatted = endDate.replace(' ', 'T');
 
-            const url = `${API_BASE_URL}/api/reading/export/pdf?device_id=${selectedDevice}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
+            const url = `${API_BASE_URL}/api/reading/export/pdf?device_id=${selectedDevice}&start_date=${encodeURIComponent(startFormatted)}&end_date=${encodeURIComponent(endFormatted)}`;
 
             // Get device name for filename
             const deviceName = devices.find(d => d.id == selectedDevice)?.name || 'device';

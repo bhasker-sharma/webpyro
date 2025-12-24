@@ -74,24 +74,33 @@ def to_iso_utc(dt: datetime) -> str:
 
 def parse_iso_utc(iso_string: str) -> datetime:
     """
-    Parse ISO format timestamp to timezone-aware UTC datetime
+    Parse ISO format timestamp to datetime
 
-    Handles both 'Z' suffix and '+00:00' timezone format
+    Handles both timezone-aware ('Z' suffix, '+00:00') and naive datetime strings.
+    For naive datetime strings (no timezone info), returns as-is without conversion.
 
     Args:
         iso_string: ISO 8601 formatted timestamp
 
     Returns:
-        datetime: Timezone-aware UTC datetime
+        datetime: Datetime object (timezone-aware or naive depending on input)
 
     Example:
         >>> parse_iso_utc('2025-11-29T06:02:35.123456Z')
         datetime.datetime(2025, 11, 29, 6, 2, 35, 123456, tzinfo=datetime.timezone.utc)
+        >>> parse_iso_utc('2025-11-29T06:02:35')
+        datetime.datetime(2025, 11, 29, 6, 2, 35)
     """
-    # Replace 'Z' with '+00:00' for Python's fromisoformat
-    normalized = iso_string.replace('Z', '+00:00')
-    dt = datetime.fromisoformat(normalized)
-    return ensure_utc(dt)
+    # Check if string has timezone info
+    if 'Z' in iso_string or '+' in iso_string or iso_string.count('-') > 2:
+        # Has timezone info - parse and ensure UTC
+        normalized = iso_string.replace('Z', '+00:00')
+        dt = datetime.fromisoformat(normalized)
+        return ensure_utc(dt)
+    else:
+        # No timezone info - parse as naive datetime (use as-is)
+        dt = datetime.fromisoformat(iso_string)
+        return dt
 
 
 # IST (India Standard Time) conversion utilities
