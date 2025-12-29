@@ -6,6 +6,7 @@ Sets up comprehensive logging for the entire application
 import logging
 import logging.handlers
 import os
+import sys
 from pathlib import Path
 from datetime import datetime
 
@@ -30,9 +31,17 @@ def setup_logging():
     - All ERROR and CRITICAL logs go to errors.log
     """
 
-    # Create logs directory if it doesn't exist
-    log_dir = Path(__file__).parent.parent / "logs"
-    log_dir.mkdir(exist_ok=True)
+    # Create logs directory in a user-writable location
+    if getattr(sys, 'frozen', False):
+        # Running as compiled executable - use AppData for logs
+        # This ensures logs can be written even when installed in Program Files
+        app_data = os.environ.get('APPDATA', os.path.expanduser('~'))
+        log_dir = Path(app_data) / "Pyrometer Desktop Monitor" / "logs"
+    else:
+        # Running in development - use project directory
+        log_dir = Path(__file__).parent.parent / "logs"
+
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     # Define log format with timestamps
     # Format: 2025-11-23 14:30:45,123 | INFO | modbus_service:127 | Connected to COM3

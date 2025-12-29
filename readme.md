@@ -1,616 +1,375 @@
-# Web Pyrometer Monitoring System
+# Pyrometer Desktop Monitor - Standalone Desktop Application
 
-A production-ready web application for real-time temperature monitoring of multiple Modbus RS485 pyrometer devices with network accessibility, historical data analysis, and multi-user support.
+This is the desktop version of the Pyrometer Monitor application, packaged as a standalone Windows executable with an easy-to-use installer.
 
-## Features
+## Overview
 
-- **Real-time Monitoring:** Continuous polling and live temperature display with WebSocket updates
-- **Multi-Device Support:** Monitor up to 16 Modbus devices simultaneously
-- **Network Accessible:** Access from any computer on your local network
-- **Historical Data:** PostgreSQL storage with CSV export and date-range filtering
-- **Interactive Graphs:** Real-time temperature visualization with customizable time windows
-- **Responsive UI:** Modern interface built with React 19 and Tailwind CSS
+The desktop version has been converted from the web-based application to a standalone desktop application with the following improvements:
 
-## Technology Stack
+- **No External Dependencies**: No need to install Python, Node.js, or PostgreSQL separately
+- **SQLite Database**: Lightweight, file-based database included
+- **Native Desktop Window**: Runs as a native Windows application using pywebview
+- **Easy Installation**: Professional installer like any commercial software
+- **Single Click Launch**: Just double-click the icon to run
 
-### Backend
-- **FastAPI 0.118** - Async Python web framework
-- **PostgreSQL** - Database for device config and readings
-- **PyModbus 3.11.3** - Modbus RTU communication
-- **Uvicorn** - ASGI server
-- **SQLAlchemy 2.0** - ORM
+## Directory Structure
 
-### Frontend
-- **React 19.1.1** - UI library
-- **Vite 6.0** - Build tool and dev server
-- **Tailwind CSS 3.4** - Styling
-- **Recharts 3.3** - Charts
-- **Axios** - HTTP client
+```
+desktop-software/
+├── backend/                    # Python backend code
+│   ├── app/                   # Application modules
+│   │   ├── models/           # Database models
+│   │   ├── schemas/          # Pydantic schemas
+│   │   ├── api/              # API routes
+│   │   ├── services/         # Business logic services
+│   │   ├── config.py         # Configuration (SQLite)
+│   │   ├── database.py       # Database connection (SQLite)
+│   │   ├── logging_config.py # Logging setup
+│   │   └── rs485_client.py   # RS485 communication
+│   ├── main.py               # Desktop application entry point
+│   ├── requirements.txt      # Python dependencies
+│   ├── pyrometer_desktop.spec # PyInstaller build configuration
+│   └── dist/                 # Built executable (after build)
+├── frontend/                  # React frontend
+│   ├── src/                  # Source code
+│   ├── dist/                 # Built frontend (after build)
+│   └── package.json          # npm dependencies
+├── installer/                 # Installer configuration
+│   └── installer_script.iss  # Inno Setup script
+├── build-scripts/             # Build automation scripts
+│   ├── build.bat            # Build executable
+│   └── build-installer.bat  # Build installer
+├── output/                    # Final installer output (after build)
+└── README.md                 # This file
+```
 
----
+## Key Changes from Web Version
 
-## Quick Start (Production)
+### 1. Database Migration
+- **From**: PostgreSQL (requires separate server installation)
+- **To**: SQLite (file-based, bundled with application)
+- **Location**: Database file stored in `data/pyrometer.db` next to the executable
+
+### 2. Desktop Window
+- **From**: Browser-based interface
+- **To**: Native desktop window using `pywebview`
+- **Benefits**: Looks and feels like a native application
+
+### 3. Configuration
+- **From**: Manual .env file configuration
+- **To**: Automatic configuration with sensible defaults
+- **Server**: Runs on localhost (127.0.0.1:8000) for security
+
+### 4. Packaging
+- **From**: Manual installation of Python, dependencies, and database
+- **To**: Single installer file with everything included
+
+## Building the Application
 
 ### Prerequisites
 
-Install these on the **SERVER** computer only (clients just need a browser):
+1. **Python 3.11+**
+   - Download from: https://www.python.org/downloads/
+   - During installation, check "Add Python to PATH"
 
-1. **Python 3.8+** - [Download](https://www.python.org/downloads/) (check "Add to PATH")
-2. **PostgreSQL 14+** - [Download](https://www.postgresql.org/download/)
-3. **Node.js 18+** - [Download](https://nodejs.org/) (only for initial build, optional for production)
+2. **Node.js 18+**
+   - Download from: https://nodejs.org/
+   - Choose LTS version
 
-### Installation (15 minutes)
+3. **Inno Setup 6** (for creating installer)
+   - Download from: https://jrsoftware.org/isdl.php
+   - Install to default location: `C:\Program Files (x86)\Inno Setup 6\`
 
-**1. Clone or download this repository**
-```bash
-git clone <repository-url>
-cd webpyro
+### Build Steps
+
+#### Option 1: Automated Build (Recommended)
+
+1. **Open Command Prompt** in the `desktop-software` folder
+
+2. **Run the build script**:
+   ```cmd
+   cd build-scripts
+   build.bat
+   ```
+
+   This will:
+   - Install Python dependencies
+   - Build the React frontend
+   - Create the executable using PyInstaller
+   - Place the result in `backend\dist\PyrometerMonitor\`
+
+3. **Create the installer**:
+   ```cmd
+   build-installer.bat
+   ```
+
+   This will:
+   - Use Inno Setup to create a professional installer
+   - Place the installer in `output\PyrometerMonitor_Setup_v1.0.0.exe`
+
+#### Option 2: Manual Build
+
+1. **Install Python dependencies**:
+   ```cmd
+   cd backend
+   pip install -r requirements.txt
+   ```
+
+2. **Build the frontend**:
+   ```cmd
+   cd ..\frontend
+   npm install
+   npm run build
+   ```
+
+3. **Build the executable**:
+   ```cmd
+   cd ..\backend
+   pyinstaller pyrometer_desktop.spec --clean --noconfirm
+   ```
+
+4. **Build the installer** (open Inno Setup):
+   - Open `installer\installer_script.iss` in Inno Setup
+   - Click "Build" → "Compile"
+
+## Testing the Application
+
+### Test the Executable Directly
+
+Before creating the installer, you can test the executable:
+
+```cmd
+cd backend\dist\PyrometerMonitor
+PyrometerMonitor.exe
 ```
 
-**2. Run automated setup** (as Administrator)
-```bash
-setup-environment.bat
-```
-This installs all dependencies for both backend and frontend.
+The application should:
+1. Start the backend server
+2. Open a desktop window
+3. Display the dashboard interface
+4. Create a `data` folder with `pyrometer.db` database file
 
-**3. Create PostgreSQL database**
-```sql
--- Open pgAdmin or psql
-CREATE DATABASE modbus_monitor;
-```
+### Test the Installer
 
-**4. Configure backend**
+1. Run the installer: `output\PyrometerMonitor_Setup_v1.0.0.exe`
+2. Follow the installation wizard
+3. Launch the application from the desktop icon or Start Menu
+4. Verify all features work correctly
 
-Edit `backend\.env` (copy from `backend\.env.production` if needed):
-```env
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/modbus_monitor
-CONFIG_PIN=1234  # Change this!
-DEBUG=False
-MODBUS_POLL_INTERVAL=1
-```
+## Distributing to Users
 
-**Note:** Use `%40` for `@` in passwords (e.g., `admin@123` → `admin%40123`)
+### What to Give Users
 
-**5. Configure firewall** (as Administrator)
-```bash
-configure-firewall.bat
-```
+Provide users with the installer file:
+- **File**: `PyrometerMonitor_Setup_v1.0.0.exe`
+- **Size**: Approximately 150-250 MB (includes all dependencies)
 
-**6. Start the application**
-```bash
-PRODUCTION-START-MINIMAL.bat
-```
+### User Installation Instructions
 
-**7. Access the application**
-- From server: `http://localhost:5173`
-- From network: `http://YOUR-SERVER-IP:5173`
+1. **Download** the installer file
+2. **Double-click** to run the installer
+3. **Follow** the installation wizard:
+   - Accept the license agreement
+   - Choose installation location (default: `C:\Program Files\Pyrometer Desktop Monitor\`)
+   - Select whether to create desktop icon
+   - Click Install
+4. **Launch** the application:
+   - From desktop icon (if created)
+   - From Start Menu → Pyrometer Desktop Monitor
+   - From installation folder
 
-Find your server IP: Run `ipconfig` in Command Prompt
+### First Run
 
-### Stopping the Application
-```bash
-PRODUCTION-STOP.bat
-```
+On first run, the application will:
+1. Create a `data` folder for the database
+2. Initialize the SQLite database
+3. Start the monitoring services
+4. Display the dashboard
 
----
+### Data Location
 
-## Manual Setup (Development or Advanced)
+User data is stored in:
+- **Installation folder**: `C:\Program Files\Pyrometer Desktop Monitor\data\pyrometer.db`
+- **Logs**: `C:\Program Files\Pyrometer Desktop Monitor\logs\`
 
-### Backend
+### Uninstallation
 
-```bash
-cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate (Windows)
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Create .env file (see Configuration section)
-
-# Create database
-psql -U postgres -c "CREATE DATABASE modbus_monitor;"
-
-# Start server
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-### Frontend
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Development server (with hot-reload)
-npm run dev
-
-# Production build
-npm run build
-
-# Serve production build
-npm run preview
-```
-
----
-
-## Building for Production
-
-### Frontend Build
-
-The frontend must be built before production deployment:
-
-```bash
-cd frontend
-
-# Install dependencies (if not already done)
-npm install
-
-# Build for production
-npm run build
-```
-
-This creates an optimized build in `frontend/dist/` with:
-- Minified JavaScript and CSS
-- Tree-shaking (removes unused code)
-- Code splitting for faster loading
-- Optimized assets
-
-**Build output:** `frontend/dist/` (~5MB)
-
-### Serving the Production Build
-
-**Option 1: With Node.js (Vite Preview)**
-```bash
-cd frontend
-npm run preview
-```
-- Requires: `node_modules/`, `package.json`, `vite.config.js`
-- Use: `PRODUCTION-START.bat`
-
-**Option 2: With Python HTTP Server (Recommended)**
-```bash
-cd frontend/dist
-python -m http.server 5173 --bind 0.0.0.0
-```
-- Only requires: `dist/` folder
-- Use: `PRODUCTION-START-MINIMAL.bat` ✅
-- Smaller deployment package (~200MB vs ~300MB)
-
-### Deployment Package
-
-For deploying to a new server, you need:
-
-```
-webpyro/
-├── backend/
-│   ├── venv/               # Python environment
-│   ├── app/                # Application code
-│   ├── main.py
-│   ├── requirements.txt
-│   └── .env.production     # Template (copy to .env)
-├── frontend/
-│   └── dist/               # Production build (MINIMAL)
-│   OR
-│   ├── dist/               # Production build
-│   ├── node_modules/       # NPM packages
-│   ├── package.json        # For Vite preview
-│   └── vite.config.js      # Vite config
-├── PRODUCTION-START-MINIMAL.bat  # Recommended
-├── PRODUCTION-STOP.bat
-├── setup-environment.bat
-└── configure-firewall.bat
-```
-
-**Package size:**
-- Minimal (Python HTTP server): ~200MB
-- Standard (Vite preview): ~300MB.
-
----
+Users can uninstall via:
+- **Control Panel** → Programs → Uninstall a program
+- **Start Menu** → Pyrometer Desktop Monitor → Uninstall
 
 ## Configuration
 
-### Backend (.env file)
+### Default Settings
 
-The `.env.production` file is a **template**. Copy it to `.env` and customize:
+The application uses these default settings:
 
-**Why two files?**
-- **`.env.production`** - Template with example values (safe for Git)
-- **`.env`** - Your actual config with real passwords (**NOT** in Git)
-
-```bash
-# Copy template to create your config
-cd backend
-copy .env.production .env
-
-# Edit .env with your settings
-notepad .env
+```python
+app_name: "Pyrometer Desktop Monitor"
+debug: False
+modbus_timeout: 5
+modbus_poll_interval: 5
+data_retention_days: 90
+server_host: "127.0.0.1"  # Localhost only
+server_port: 8000
+config_pin: "1234"
 ```
 
-**Key settings:**
+### Customizing Settings
 
-```env
-# Database (required)
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/modbus_monitor
-
-# Security (required)
-CONFIG_PIN=1234  # Change this 4-digit PIN!
-DEBUG=False      # Must be False in production
-
-# Modbus (optional, can configure in UI)
-MODBUS_TIMEOUT=1              # Seconds to wait for device response
-MODBUS_POLL_INTERVAL=1        # Seconds between polling cycles
-MODBUS_REGISTER_ADDRESS=4002  # Register type
-MODBUS_FUNCTION_CODE=3        # Function code (3 or 4)
-MODBUS_START_REGISTER=1       # Start register
-MODBUS_REGISTER_COUNT=1       # Number of registers
-```
-
-### Frontend
-
-Auto-detects backend URL based on hostname. No configuration needed for local network.
-
-For custom setup, edit `frontend/src/services/api.js`:
-```javascript
-const hostname = window.location.hostname;
-const apiUrl = `http://${hostname}:8000/api`;
-```
-
----
-
-## Usage
-
-### First-Time Device Setup
-
-1. Open the application in your browser
-2. Click "Configure Devices" button
-3. Add your Modbus devices:
-   - Name: e.g., "Pyrometer 1"
-   - Slave ID: Modbus device address (1-247)
-   - COM Port: e.g., COM3 (check Device Manager)
-   - Baud Rate: Match your device (9600, 19200, etc.)
-   - Enable device
-   - Show in graph (optional)
-4. Click "Save Configuration"
-5. Devices will start polling automatically
-
-### Monitoring
-
-- **Dashboard**: Real-time temperature cards with color-coded status
-  - 🟢 Green: Reading OK
-  - 🟡 Yellow: Stale data
-  - 🔴 Red: Error
-- **Graphs**: Time-series visualization (10 min - 3 hours)
-- **Preview & Export**: Historical data with CSV export
-
-### Network Access
-
-**From server computer:**
-```
-http://localhost:5173
-```
-
-**From any computer on the network:**
-```
-http://192.168.1.100:5173  (use your server's IP)
-```
-
-**Find server IP:**
-```bash
-ipconfig  # Windows
-ifconfig  # Linux/Mac
-```
-
-### Desktop Shortcut (Optional)
-
-For easy access, create a shortcut on client computers:
-1. Right-click Desktop → New → Shortcut
-2. Location: `http://YOUR-SERVER-IP:5173`
-3. Name: "Web Pyrometer"
-
----
-
-## Project Structure
-
-```
-webpyro/
-├── backend/                      # Python FastAPI backend
-│   ├── main.py                   # Entry point
-│   ├── requirements.txt          # Dependencies
-│   ├── .env.production          # Config template
-│   ├── .env                     # Actual config (not in Git)
-│   └── app/
-│       ├── models/              # Database models
-│       ├── schemas/             # Pydantic schemas
-│       ├── api/                 # API routes
-│       │   ├── routes.py        # Main endpoints
-│       │   ├── devices.py       # Device CRUD
-│       │   └── websocket.py     # WebSocket handler
-│       └── services/            # Business logic
-│           ├── modbus_service.py     # Modbus communication
-│           ├── polling_service.py    # Background polling
-│           ├── buffer_service.py     # Ping-pong buffer
-│           └── device_service.py     # Device operations
-│
-├── frontend/                     # React frontend
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── DashboardPage.jsx     # Real-time monitoring
-│   │   │   └── PreviewPage.jsx       # Historical data
-│   │   ├── components/
-│   │   │   ├── Navbar.jsx
-│   │   │   ├── ConfigModal.jsx       # Device config UI
-│   │   │   └── GraphSection.jsx      # Charts
-│   │   └── services/
-│   │       ├── api.js                # API client
-│   │       └── websocket.js          # WebSocket client
-│   ├── dist/                    # Production build (generated)
-│   ├── package.json
-│   └── vite.config.js
-│
-├── setup-environment.bat         # Initial setup
-├── configure-firewall.bat        # Firewall config
-├── PRODUCTION-START-MINIMAL.bat  # Start (Python HTTP server)
-├── PRODUCTION-STOP.bat          # Stop servers
-├── .gitignore                   # Git ignore rules
-└── README.md                    # This file
-```
-
----
-
-## API Documentation
-
-### Interactive Docs
-
-FastAPI provides built-in documentation:
-- **Swagger UI**: `http://localhost:8000/docs`
-- **ReDoc**: `http://localhost:8000/redoc`
-
-### Key Endpoints
-
-**Devices**
-- `GET /api/devices` - List all devices
-- `POST /api/devices` - Create device
-- `PUT /api/devices/{id}` - Update device
-- `DELETE /api/devices/{id}` - Delete device
-
-**Readings**
-- `GET /api/reading/latest` - Latest reading per device
-- `GET /api/reading/filter?start_time=...&end_time=...` - Filtered readings
-- `GET /api/reading/export/csv` - Export CSV
-
-**System**
-- `GET /api/health` - Health check
-- `GET /api/polling/stats` - Polling statistics
-
-**Real-time**
-- `WebSocket /api/ws` - Live temperature updates
-
----
-
-## Database Schema
-
-The application automatically creates these tables on first run:
-
-### device_settings
-Device configuration (name, slave ID, COM port, baud rate, etc.)
-
-### device_readings
-Recent temperature readings with timestamps and status
-
-### reading_archive
-Historical data archive
-
----
+Advanced users can modify settings by:
+1. Creating a `.env` file in the installation folder
+2. Adding custom configuration values
+3. Restarting the application
 
 ## Troubleshooting
 
-### Centralized Logging System
+### Build Issues
 
-The application includes comprehensive logging to help diagnose issues. All log files are in `backend/logs/`:
-
-**Quick diagnosis:**
-```powershell
-# Check all errors (RECOMMENDED - check this first!)
-Get-Content backend\logs\errors.log -Tail 20
-
-# Monitor errors in real-time
-Get-Content backend\logs\errors.log -Wait -Tail 20
-
-# Check Modbus communication issues
-Get-Content backend\logs\modbus.log -Tail 20
-
-# Check API requests
-Get-Content backend\logs\api.log -Tail 20
+**Problem**: PyInstaller fails with "module not found" error
+**Solution**: Make sure all dependencies are installed:
+```cmd
+pip install -r requirements.txt
 ```
 
-**Log files:**
-- `errors.log` - All errors (check this first!) ⚠️
-- `modbus.log` - Device communication issues
-- `polling.log` - Polling service status
-- `database.log` - Database connection issues
-- `api.log` - HTTP request/response logs
-- `websocket.log` - WebSocket connection logs
-- `app.log` - General application logs
-
-For complete logging documentation, see: **backend/LOGGING.md**
-
----
-
-### Cannot connect to database
-- Verify PostgreSQL is running (Services → postgresql-x64-XX)
-- Check `DATABASE_URL` in `backend\.env`
-- Ensure database `modbus_monitor` exists
-- **Check logs**: `backend\logs\database.log` and `backend\logs\errors.log`
-
-### Port already in use
-```bash
-# Find process using port
-netstat -ano | findstr "8000"
-netstat -ano | findstr "5173"
-
-# Kill process
-taskkill /PID <process-id> /F
+**Problem**: Frontend build fails
+**Solution**: Clear npm cache and reinstall:
+```cmd
+cd frontend
+rd /s /q node_modules
+npm cache clean --force
+npm install
+npm run build
 ```
 
-### Modbus devices not responding
-- Check COM port in Device Manager
-- Verify baud rate matches device
-- Ensure RS485 adapter is connected
-- Check device slave ID is correct
-- Verify device is powered on
-- **Check logs**: `backend\logs\modbus.log` for detailed communication errors
+**Problem**: Inno Setup not found
+**Solution**: Install Inno Setup from https://jrsoftware.org/isdl.php
 
-### Cannot access from network
-- Run `configure-firewall.bat` as Administrator
-- Verify both computers on same network
-- Ping server from client: `ping SERVER-IP`
-- Temporarily disable antivirus to test
+### Runtime Issues
 
-### No data showing
-- Check device configuration (click "Configure Devices")
-- Verify devices are enabled
-- Check browser console for errors (F12)
-- Verify backend is running: `http://localhost:8000/api/health`
-- **Check logs**: `backend\logs\polling.log` to see if devices are being polled
+**Problem**: Application doesn't start
+**Solution**:
+- Check if port 8000 is already in use
+- Run as Administrator
+- Check logs in the `logs` folder
 
----
+**Problem**: Database errors
+**Solution**:
+- Delete `data\pyrometer.db` to reset the database
+- Restart the application
+
+**Problem**: COM port not detected
+**Solution**:
+- Ensure the RS485 adapter is connected
+- Install the correct drivers for the adapter
+- Run the application as Administrator
 
 ## Development
 
-### Adding API Endpoint
+### Running in Development Mode
 
-1. Add route in `backend/app/api/routes.py`
-2. Add service logic in appropriate service file
-3. Update frontend in `frontend/src/services/api.js`
+For development and testing:
 
-### Adding Frontend Page
-
-1. Create component in `frontend/src/pages/`
-2. Add route in `frontend/src/App.jsx`
-3. Add navigation in `frontend/src/components/Navbar.jsx`
-
-### Testing Modbus
-
-```bash
+```cmd
 cd backend
-python test_modbus.py
+python main.py
 ```
 
----
+This will:
+- Run with DEBUG mode enabled
+- Show console output
+- Use local database file
+- Open the desktop window
 
-## Production Deployment
+### Modifying the Code
 
-### Security Checklist
+1. Make changes to Python code in `backend/app/`
+2. Make changes to React code in `frontend/src/`
+3. Test changes by running `python main.py`
+4. Rebuild the frontend: `cd frontend && npm run build`
+5. Rebuild the executable: `cd backend && pyinstaller pyrometer_desktop.spec`
 
-- [ ] Change `CONFIG_PIN` in `.env`
-- [ ] Set `DEBUG=False` in `.env`
-- [ ] Use strong PostgreSQL password
-- [ ] Configure Windows Firewall
-- [ ] Restrict network access if needed
+## Technical Details
 
-### Running as Windows Service (Optional)
+### Architecture
 
-For automatic startup with Windows, use NSSM or Task Scheduler to run `PRODUCTION-START-MINIMAL.bat` on boot.
-
-### Backup Strategy
-
-**Database backup:**
-```bash
-pg_dump -U postgres modbus_monitor > backup.sql
+```
+┌─────────────────────────────────┐
+│   Desktop Window (pywebview)    │
+│   Native OS Window              │
+└─────────────┬───────────────────┘
+              │ HTTP/WebSocket
+              ↓
+┌─────────────────────────────────┐
+│   FastAPI Backend               │
+│   - REST API                    │
+│   - WebSocket for real-time     │
+│   - Background services         │
+└─────────────┬───────────────────┘
+              │ SQLAlchemy
+              ↓
+┌─────────────────────────────────┐
+│   SQLite Database               │
+│   - device_settings             │
+│   - device_readings             │
+│   - reading_archive             │
+└─────────────────────────────────┘
+              ↑
+              │ Modbus RTU / RS485
+┌─────────────────────────────────┐
+│   Pyrometer Devices             │
+│   (Serial/COM Port)             │
+└─────────────────────────────────┘
 ```
 
-**Configuration backup:**
-- Backup `backend\.env` file
-- Backup device configurations
+### Technologies Used
 
----
+- **Backend**: FastAPI, Uvicorn, SQLAlchemy
+- **Frontend**: React, Vite, Tailwind CSS, Recharts
+- **Database**: SQLite 3
+- **Desktop**: pywebview (uses system's Edge/Chrome WebView2)
+- **Modbus**: pymodbus, pyserial
+- **Packaging**: PyInstaller, Inno Setup
 
-## Scripts Reference
+### Dependencies
 
-| Script | Purpose | Admin Required |
-|--------|---------|----------------|
-| `setup-environment.bat` | Install dependencies (run once) | Yes |
-| `configure-firewall.bat` | Configure Windows Firewall | Yes |
-| `PRODUCTION-START-MINIMAL.bat` | Start system (Python HTTP) | No |
-| `PRODUCTION-STOP.bat` | Stop all servers | No |
+**Python** (`requirements.txt`):
+- fastapi==0.118.0
+- uvicorn==0.37.0
+- SQLAlchemy==2.0.43
+- pywebview==5.3
+- pyinstaller==6.11.1
+- pymodbus==3.11.3
+- pyserial==3.5
+- And more... (see requirements.txt)
 
-**Daily operation:** Just run `PRODUCTION-START-MINIMAL.bat`
+**JavaScript** (`package.json`):
+- react==19.1.1
+- vite==6.0.0
+- recharts==3.3.0
+- tailwindcss==3.4.0
+- And more... (see package.json)
 
----
+## Version History
 
-## Offline Deployment
-
-This system works 100% offline on local network:
-
-1. Download prerequisites on a computer with internet
-2. Copy to USB drive with application files
-3. Install on offline server
-4. No internet needed for operation
-
----
+### Version 1.0.0 (Current)
+- Initial desktop release
+- Migrated from PostgreSQL to SQLite
+- Added pywebview desktop wrapper
+- Created installer with Inno Setup
+- Full feature parity with web version
 
 ## Support
 
-**Check these first:**
-- Terminal/console logs for errors
-- API docs: `http://localhost:8000/docs`
-- Browser console (F12)
-- Verify configuration in `.env`
-
-**Common fixes:**
-- Restart servers
-- Check PostgreSQL is running
-- Verify firewall settings
-- Check COM port in Device Manager
-
----
+For issues or questions:
+1. Check the logs in the `logs` folder
+2. Review this README
+3. Contact TIPL support
 
 ## License
 
-Copyright 2025. All rights reserved.
+[Add your license information here]
 
 ---
 
-## Version
-
-**Version:** 2.0.0
-**Last Updated:** November 13, 2025
-**Status:** Production Ready
-
----
-
-## Quick Reference
-
-```bash
-# Installation
-setup-environment.bat                    # Run once as Admin
-configure-firewall.bat                   # Run once as Admin
-
-# Daily use
-PRODUCTION-START-MINIMAL.bat            # Start system
-PRODUCTION-STOP.bat                     # Stop system
-
-# Access
-http://localhost:5173                   # From server
-http://YOUR-IP:5173                     # From network
-
-# Backend API
-http://localhost:8000/docs              # API documentation
-http://localhost:8000/api/health        # Health check
-
-# Build frontend
-cd frontend && npm run build            # Creates dist/ folder
-
-# Find server IP
-ipconfig                                # Windows
-```
-
----
-
-**Made for industrial temperature monitoring 🔥**
+**Built with** ❤️ **by TIPL**

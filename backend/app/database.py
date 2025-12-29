@@ -1,6 +1,6 @@
 """
 Database Connection Module
-Handles PostgreSQL connection using SQLAlchemy
+Handles SQLite connection using SQLAlchemy (Desktop Version)
 """
 
 from sqlalchemy import create_engine, event
@@ -18,16 +18,28 @@ logger = logging.getLogger(__name__)
 # Create database engine
 # echo=False disables SQL query logging in console
 try:
+    # SQLite specific settings
     engine = create_engine(
         settings.database_url,
         echo=False,           # Disable SQL query logging
-        pool_pre_ping=True,   # Test connections before using them
-        pool_size=10,         # Number of connections to keep open
-        max_overflow=20       # Maximum number of connections to create beyond pool_size
+        connect_args={
+            "check_same_thread": False,  # Allow multiple threads (required for SQLite)
+            "timeout": 30  # 30 second timeout for locks
+        }
     )
-    logger.info("Database engine created successfully")
-    logger.debug(f"Database URL: {settings.database_url.split('@')[1] if '@' in settings.database_url else 'N/A'}")  # Log without password
-    logger.debug(f"Pool size: 10, Max overflow: 20")
+
+    # Enable WAL mode for better concurrency (SQLite specific)
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_conn, connection_record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA cache_size=-64000")  # 64MB cache
+        cursor.execute("PRAGMA busy_timeout=30000")  # 30 second busy timeout
+        cursor.close()
+
+    logger.info("Database engine created successfully (SQLite)")
+    logger.debug(f"Database path: {settings.database_url}")
 except Exception as e:
     logger.error(f"Failed to create database engine: {e}", exc_info=True)
     raise
@@ -56,14 +68,12 @@ def get_db():
     """
     db = SessionLocal()
     try:
-        # Don't log session creation (happens on every API request - too verbose)
         yield db
     except Exception as e:
         logger.error(f"Database session error: {e}", exc_info=True)
         raise
     finally:
         db.close()
-        # Don't log session close (too verbose)
 
 
 # Function to test database connection
@@ -88,7 +98,6 @@ def test_connection():
 def create_tables():
     """
     Create all tables defined in models.
-    This is a backup - we already created tables in pgAdmin.
     """
     try:
         logger.info("Creating/verifying database tables...")
