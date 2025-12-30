@@ -15,6 +15,7 @@ from app.services.modbus_service import modbus_service
 from app.services.buffer_service import reading_buffer
 from app.services.websocket_service import websocket_manager
 from app.config import get_settings
+from app.utils.datetime_utils import parse_iso_ist
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -205,7 +206,7 @@ class PollingService:
                         'ambient_temp': result.get('ambient_temp'),
                         'status': result['status'],
                         'raw_hex': result['raw_hex'],
-                        'timestamp': datetime.fromisoformat(result['timestamp'])
+                        'timestamp': parse_iso_ist(result['timestamp'])
                     }
 
                     # Add to buffer (will be saved to DB when buffer is full)

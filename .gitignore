@@ -1,0 +1,39 @@
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# Temporary Files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Compiled Python Files
+*.pyc
+*.pyo
+__pycache__/
+
+# Logs
+*.log
+
+# Database (don't commit database files)
+*.db
+*.db-shm
+*.db-wal
+
+# Build Output (created when building installer)
+output/
+
+# Assets that are generated
+*.exe
+*.msi

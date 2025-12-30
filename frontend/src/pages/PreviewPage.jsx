@@ -82,22 +82,20 @@ function PreviewPage() {
         setError(null);
 
         try {
-            // Convert local datetime to UTC for backend
-            // The datetime-local input gives us "2025-11-24T14:00" which is in user's local timezone
-            // Convert to UTC timestamp string
-            const startUTC = new Date(startDate).toISOString();
-            const endUTC = new Date(endDate).toISOString();
+            // NO TIMEZONE CONVERSION - Send IST datetime as-is
+            // The datetime-local input gives us "2025-12-29T14:00" which is already in IST
+            // Just append seconds to make it a valid ISO format
+            const startIST = startDate + ':00';  // Add seconds
+            const endIST = endDate + ':59';      // Add seconds
 
-            console.log('Filter request:', {
-                startLocal: startDate,
-                startUTC,
-                endLocal: endDate,
-                endUTC,
+            console.log('Filter request (IST, no conversion):', {
+                startIST,
+                endIST,
                 device_id: selectedDevice.id,
                 device_name: selectedDevice.name
             });
 
-            const url = `${API_BASE_URL}/api/reading/filter?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}`;
+            const url = `${API_BASE_URL}/api/reading/filter?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startIST)}&end_date=${encodeURIComponent(endIST)}`;
             const response = await fetch(url);
 
             if (!response.ok) throw new Error('Failed to fetch readings');
@@ -129,9 +127,9 @@ function PreviewPage() {
         }
 
         try {
-            // Convert local datetime to UTC for backend (same as filter)
-            const startUTC = new Date(startDate).toISOString();
-            const endUTC = new Date(endDate).toISOString();
+            // NO TIMEZONE CONVERSION - Send IST datetime as-is
+            const startIST = startDate + ':00';
+            const endIST = endDate + ':59';
 
             // Format display dates (user's input format for header)
             const formatDisplayDate = (dateTimeLocal) => {
@@ -143,11 +141,12 @@ function PreviewPage() {
             const startDisplay = formatDisplayDate(startDate);
             const endDisplay = formatDisplayDate(endDate);
 
-            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}&start_date_display=${encodeURIComponent(startDisplay)}&end_date_display=${encodeURIComponent(endDisplay)}`;
+            const url = `${API_BASE_URL}/api/reading/export/csv?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startIST)}&end_date=${encodeURIComponent(endIST)}&start_date_display=${encodeURIComponent(startDisplay)}&end_date_display=${encodeURIComponent(endDisplay)}`;
 
             // Get device name for filename
             const deviceName = selectedDevice.name || 'device';
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
             const filename = `${deviceName}_readings_${timestamp}.csv`;
 
             // Fetch the CSV data
@@ -176,6 +175,7 @@ function PreviewPage() {
                     await writable.close();
 
                     setError(null);
+                    alert('✅ CSV file saved successfully!');
                 } catch (err) {
                     // User cancelled the dialog
                     if (err.name !== 'AbortError') {
@@ -194,6 +194,7 @@ function PreviewPage() {
                 window.URL.revokeObjectURL(blobUrl);
 
                 setError(null);
+                alert('✅ CSV file saved successfully!');
             }
         } catch (err) {
             console.error('Error exporting data:', err);
@@ -213,9 +214,9 @@ function PreviewPage() {
         }
 
         try {
-            // Convert local datetime to UTC for backend (same as CSV)
-            const startUTC = new Date(startDate).toISOString();
-            const endUTC = new Date(endDate).toISOString();
+            // NO TIMEZONE CONVERSION - Send IST datetime as-is
+            const startIST = startDate + ':00';
+            const endIST = endDate + ':59';
 
             // Format display dates (user's input format for header)
             const formatDisplayDate = (dateTimeLocal) => {
@@ -227,11 +228,12 @@ function PreviewPage() {
             const startDisplay = formatDisplayDate(startDate);
             const endDisplay = formatDisplayDate(endDate);
 
-            const url = `${API_BASE_URL}/api/reading/export/pdf?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startUTC)}&end_date=${encodeURIComponent(endUTC)}&start_date_display=${encodeURIComponent(startDisplay)}&end_date_display=${encodeURIComponent(endDisplay)}`;
+            const url = `${API_BASE_URL}/api/reading/export/pdf?device_id=${selectedDevice.id}&start_date=${encodeURIComponent(startIST)}&end_date=${encodeURIComponent(endIST)}&start_date_display=${encodeURIComponent(startDisplay)}&end_date_display=${encodeURIComponent(endDisplay)}`;
 
             // Get device name for filename
             const deviceName = selectedDevice.name || 'device';
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
             const filename = `${deviceName}_report_${timestamp}.pdf`;
 
             // Fetch the PDF data
@@ -239,17 +241,48 @@ function PreviewPage() {
             if (!response.ok) throw new Error('Failed to fetch PDF');
             const blob = await response.blob();
 
-            // Download directly to browser's default download location (works on HTTP)
-            const blobUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(blobUrl);
+            // Check if File System Access API is supported and if we're in a secure context
+            const isSecureContext = window.isSecureContext;
+            const hasFilePicker = 'showSaveFilePicker' in window;
 
-            setError(null);
+            if (hasFilePicker && isSecureContext) {
+                try {
+                    // Show save dialog (only works on HTTPS or localhost)
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: filename,
+                        types: [{
+                            description: 'PDF Files',
+                            accept: { 'application/pdf': ['.pdf'] }
+                        }]
+                    });
+
+                    // Write the file
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+
+                    setError(null);
+                    alert('✅ PDF report saved successfully!');
+                } catch (err) {
+                    // User cancelled the dialog
+                    if (err.name !== 'AbortError') {
+                        throw err;
+                    }
+                }
+            } else {
+                // Fallback: Download directly to browser's default download location
+                const blobUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(blobUrl);
+
+                setError(null);
+                alert('✅ PDF report saved successfully!');
+            }
         } catch (err) {
             console.error('Error exporting PDF:', err);
             setError('Failed to export PDF. Please try again.');
@@ -259,39 +292,45 @@ function PreviewPage() {
     const formatDateTime = (isoString) => {
         if (!isoString) return 'N/A';
 
-        // Parse the ISO string and display without timezone conversion
-        // This shows the database timestamp as-is (e.g., if DB shows 17:41, display shows 17:41)
-        const date = new Date(isoString);
+        // NO TIMEZONE CONVERSION - IST timestamps displayed as-is
+        // Parse the ISO string (already in IST from backend)
+        // Format: "2025-12-29T15:30:45.123" -> "29/12/2025, 15:30:45"
+        const parts = isoString.split('T');
+        if (parts.length !== 2) return isoString; // Fallback if format is unexpected
 
-        // Extract date/time components without timezone conversion
-        // Use UTC methods to get the raw values from the timestamp
-        const year = date.getUTCFullYear();
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(date.getUTCDate()).padStart(2, '0');
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+        const [datePart, timePart] = parts;
+        const [year, month, day] = datePart.split('-');
+        const [hours, minutes, seconds] = timePart.split(':');
 
-        return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
+        // Remove milliseconds from seconds if present
+        const secondsClean = seconds ? seconds.split('.')[0] : '00';
+
+        return `${day}/${month}/${year}, ${hours}:${minutes}:${secondsClean}`;
     };
 
-    const formatTimeForGraph = (timestamp) => {
-        const date = new Date(timestamp);
+    const formatTimeForGraph = (isoString) => {
+        // NO TIMEZONE CONVERSION - Parse IST timestamp directly
+        if (!isoString) return '';
 
-        // Use UTC methods to show time without timezone conversion
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+        const parts = isoString.split('T');
+        if (parts.length !== 2) return '';
 
-        return `${hours}:${minutes}:${seconds}`;
+        const [_, timePart] = parts;
+        const [hours, minutes, seconds] = timePart.split(':');
+        const secondsClean = seconds ? seconds.split('.')[0] : '00';
+
+        return `${hours}:${minutes}:${secondsClean}`;
     };
 
     // Prepare graph data from preview data
     const graphData = previewData.map(reading => ({
-        timestamp: new Date(reading.timestamp).getTime(),
+        timestamp: reading.timestamp,  // Keep as ISO string for X-axis
         temperature: reading.value,
         timestampStr: reading.timestamp
-    })).sort((a, b) => a.timestamp - b.timestamp);
+    })).sort((a, b) => {
+        // Sort by timestamp (string comparison works for ISO format)
+        return a.timestamp.localeCompare(b.timestamp);
+    });
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -531,12 +570,12 @@ function PreviewPage() {
                                                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                                                 <XAxis
                                                     dataKey="timestamp"
-                                                    type="number"
-                                                    domain={['dataMin', 'dataMax']}
                                                     tickFormatter={formatTimeForGraph}
                                                     stroke="#6b7280"
                                                     style={{ fontSize: '11px' }}
-                                                    scale="time"
+                                                    angle={-45}
+                                                    textAnchor="end"
+                                                    height={60}
                                                 />
                                                 <YAxis
                                                     stroke="#6b7280"

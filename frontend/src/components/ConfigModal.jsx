@@ -7,6 +7,9 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
     const [pinInput, setPinInput] = useState('');
     const [pinError, setPinError] = useState('');
     const [isPinVerified, setIsPinVerified] = useState(false);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
+    const [clearingData, setClearingData] = useState(false);
+    const [dataStats, setDataStats] = useState(null);
 
     // Single device configuration (slave ID fixed to 1)
     const [deviceConfig, setDeviceConfig] = useState({
@@ -34,8 +37,46 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
     useEffect(() => {
         if (isOpen && isPinVerified) {
             initializeDevice();
+            fetchDataStats();
         }
     }, [isOpen, isPinVerified, devices, availableComPorts]);
+
+    const fetchDataStats = async () => {
+        try {
+            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
+            const response = await fetch(`${API_BASE_URL}/api/data/stats`);
+            if (response.ok) {
+                const stats = await response.json();
+                setDataStats(stats);
+            }
+        } catch (error) {
+            console.error('Failed to fetch data stats:', error);
+        }
+    };
+
+    const handleClearAllData = async () => {
+        setClearingData(true);
+        try {
+            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
+            const response = await fetch(`${API_BASE_URL}/api/data/clear-all`, {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                alert(`Success! Deleted ${result.deleted_count} readings from database.`);
+                setShowClearConfirm(false);
+                fetchDataStats(); // Refresh stats
+            } else {
+                alert('Failed to clear data. Please try again.');
+            }
+        } catch (error) {
+            console.error('Failed to clear data:', error);
+            alert('Error: Failed to clear data. Please check the connection.');
+        } finally {
+            setClearingData(false);
+        }
+    };
 
     const fetchComPorts = async () => {
         try {
@@ -381,6 +422,30 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                     </div>
                 </div>
 
+                {/* Data Management Section */}
+                {dataStats && (
+                    <div className="p-4 bg-yellow-50 border-t border-yellow-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-700 mb-1">Database Statistics</h3>
+                                <div className="text-xs text-gray-600 space-x-4">
+                                    <span>Total: <strong>{dataStats.total_readings?.toLocaleString() || 0}</strong> readings</span>
+                                    <span>Range: <strong>{dataStats.date_range_days || 0}</strong> days</span>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowClearConfirm(true)}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center space-x-2 text-sm"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                <span>Clear All Data</span>
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex items-center justify-between p-4 border-t bg-gray-50">
                     <div className="text-sm text-gray-600">
                         <span className="font-semibold">Single Device Mode</span> - Instrument ID: 1
@@ -402,6 +467,56 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                 </div>
 
             </div>
+
+            {/* Clear All Data Confirmation Dialog */}
+            {showClearConfirm && (
+                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md p-6 m-4">
+                        <div className="flex items-center justify-center mb-4">
+                            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+                            Clear All Data?
+                        </h3>
+
+                        <p className="text-sm text-gray-600 text-center mb-6">
+                            This will <strong className="text-red-600">permanently delete</strong> all {dataStats?.total_readings?.toLocaleString() || 0} readings from the database. This action <strong>cannot be undone</strong>.
+                        </p>
+
+                        <div className="flex space-x-3">
+                            <button
+                                onClick={() => setShowClearConfirm(false)}
+                                disabled={clearingData}
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleClearAllData}
+                                disabled={clearingData}
+                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center justify-center space-x-2"
+                            >
+                                {clearingData ? (
+                                    <>
+                                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span>Deleting...</span>
+                                    </>
+                                ) : (
+                                    <span>Yes, Delete All</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -11,7 +11,7 @@ from sqlalchemy import text
 from app.models.device import DeviceSettings, DeviceReading
 from datetime import datetime, timedelta, timezone
 from app.services.reading_service import ReadingService
-from app.utils.datetime_utils import utc_now, ensure_utc, to_iso_utc, parse_iso_utc, utc_to_ist
+from app.utils.datetime_utils import ist_now, to_iso_ist, parse_iso_ist
 from fastapi.responses import StreamingResponse
 from app.config import get_settings
 from pydantic import BaseModel
@@ -191,7 +191,7 @@ async def health_check(db: Session = Depends(get_db)):
         "database": db_status,
         "database_details": db_details,
         "modbus": "not initialized yet",
-        "timestamp": to_iso_utc(utc_now())
+        "timestamp": to_iso_ist(ist_now())
     }
 
 
@@ -234,14 +234,21 @@ async def restart_polling():
 async def pause_polling():
     """
     Pause the polling service
+    Automatically flushes buffer to save all pending readings
     Call this before accessing device parameters to avoid COM port conflicts
     """
     from app.services.polling_service import polling_service
+    from app.services.buffer_service import reading_buffer
+
     try:
         await polling_service.stop()
+
+        # The stop() method already flushes the buffer, but let's be explicit
+        logger.info("Pause request: Buffer will be flushed during stop()")
+
         return {
             "status": "success",
-            "message": "Polling service paused successfully"
+            "message": "Polling service paused and buffer flushed successfully"
         }
     except Exception as e:
         raise HTTPException(
@@ -295,7 +302,7 @@ async def get_readings_for_device(
     #convert to list of dicts
     result = []
     for reading in readings:
-        # Return timestamp as-is (timezone-aware from database)
+        # Return timestamp as-is (IST, no conversion)
         result.append({
             'id':reading.id,
             'device_id':reading.device_id,
@@ -304,7 +311,7 @@ async def get_readings_for_device(
             'ambient_temp': reading.ambient_temp,  # Include ambient temperature
             'status': reading.status,
             'raw_hex': reading.raw_hex,
-            'timestamp': to_iso_utc(reading.ts_utc)
+            'timestamp': to_iso_ist(reading.ts_utc)
         })
     return result
 
@@ -329,30 +336,31 @@ async def get_filtered_readings(
 ):
     """
     Get filtered readings for a specific device with date range
+    NO TIMEZONE CONVERSIONS - Timestamps are stored and filtered in IST
 
     Query Parameters:
         - device_id: Device ID to filter readings
-        - start_date: Start datetime in ISO format (e.g., 2024-01-01T00:00:00)
-        - end_date: End datetime in ISO format (e.g., 2024-01-31T23:59:59)
+        - start_date: Start datetime in ISO format (e.g., 2024-01-01T00:00:00) in IST
+        - end_date: End datetime in ISO format (e.g., 2024-01-31T23:59:59) in IST
         - limit: Maximum number of readings to return (default 5000, prevents overwhelming frontend)
     """
-    # Parse datetime strings if provided
+    # Parse datetime strings if provided (NO CONVERSION - just parse as IST)
     start_dt = None
     end_dt = None
 
     if start_date:
         try:
-            # Parse datetime string (frontend sends UTC time from user's local timezone)
-            start_dt = parse_iso_utc(start_date)
-            logger.info(f"Filter start_date: {start_date} -> {start_dt} UTC")
+            # Parse datetime string (IST, no conversion)
+            start_dt = parse_iso_ist(start_date)
+            logger.info(f"Filter start_date (IST): {start_date} -> {start_dt}")
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid start_date format: {e}")
 
     if end_date:
         try:
-            # Parse datetime string (frontend sends UTC time from user's local timezone)
-            end_dt = parse_iso_utc(end_date)
-            logger.info(f"Filter end_date: {end_date} -> {end_dt} UTC")
+            # Parse datetime string (IST, no conversion)
+            end_dt = parse_iso_ist(end_date)
+            logger.info(f"Filter end_date (IST): {end_date} -> {end_dt}")
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid end_date format: {e}")
 
@@ -368,8 +376,7 @@ async def get_filtered_readings(
     # Convert to list of dicts
     result = []
     for reading in readings:
-        # Return timestamp as-is (timezone-aware datetime from database)
-        # The database stores timezone-aware timestamps, so no conversion needed
+        # Return timestamp as-is (IST, no conversion)
         result.append({
             'id': reading.id,
             'device_id': reading.device_id,
@@ -378,8 +385,8 @@ async def get_filtered_readings(
             'ambient_temp': reading.ambient_temp,  # Include ambient temperature
             'status': reading.status,
             'raw_hex': reading.raw_hex,
-            'timestamp': to_iso_utc(reading.ts_utc),
-            'created_at': to_iso_utc(reading.created_at) if reading.created_at else None
+            'timestamp': to_iso_ist(reading.ts_utc),
+            'created_at': to_iso_ist(reading.created_at) if reading.created_at else None
         })
 
     return {
@@ -398,29 +405,30 @@ async def export_readings_csv(
 ):
     """
     Export filtered readings as CSV file
+    NO TIMEZONE CONVERSIONS - All timestamps in IST
 
     Query Parameters:
         - device_id: Device ID to filter readings
-        - start_date: Start datetime in ISO format (for filtering)
-        - end_date: End datetime in ISO format (for filtering)
-        - start_date_display: Start datetime for display in header (user's original input)
-        - end_date_display: End datetime for display in header (user's original input)
+        - start_date: Start datetime in ISO format (IST)
+        - end_date: End datetime in ISO format (IST)
+        - start_date_display: Start datetime for display in header
+        - end_date_display: End datetime for display in header
     """
-    # Parse datetime strings if provided
+    # Parse datetime strings if provided (IST, no conversion)
     start_dt = None
     end_dt = None
 
     if start_date:
         try:
-            # Parse datetime string (frontend sends UTC time from user's local timezone)
-            start_dt = parse_iso_utc(start_date)
+            # Parse datetime string (IST, no conversion)
+            start_dt = parse_iso_ist(start_date)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid start_date format")
 
     if end_date:
         try:
-            # Parse datetime string (frontend sends UTC time from user's local timezone)
-            end_dt = parse_iso_utc(end_date)
+            # Parse datetime string (IST, no conversion)
+            end_dt = parse_iso_ist(end_date)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid end_date format")
 
@@ -464,12 +472,12 @@ async def export_readings_csv(
     # Row 4: Empty row
     writer.writerow([])
 
-    # Row 5: Column headers (raw database time to match frontend preview)
+    # Row 5: Column headers (IST timestamps, no conversion)
     writer.writerow(['Serial Number', 'Database ID', 'Date', 'Time', 'Temperature', 'Ambient Temp', 'Status'])
 
     # Write data rows
     for idx, reading in enumerate(readings, start=1):
-        # Use raw UTC timestamp (display without timezone conversion to match preview)
+        # Use IST timestamp (no conversion needed)
         date_str = reading.ts_utc.strftime("%Y-%m-%d")
         time_str = reading.ts_utc.strftime("%H:%M:%S")
 
@@ -486,8 +494,8 @@ async def export_readings_csv(
     # Prepare response
     output.seek(0)
 
-    # Filename with device name and timestamp
-    filename_time = utc_now()
+    # Filename with device name and timestamp (IST)
+    filename_time = ist_now()
     filename = f"{device_name}_readings_{filename_time.strftime('%Y%m%d_%H%M%S')}.csv"
 
     return StreamingResponse(
@@ -512,13 +520,14 @@ async def export_readings_pdf(
 ):
     """
     Export filtered readings as PDF file
+    NO TIMEZONE CONVERSIONS - All timestamps in IST
 
     Query Parameters:
         - device_id: Device ID to filter readings
-        - start_date: Start datetime in ISO format (for filtering)
-        - end_date: End datetime in ISO format (for filtering)
-        - start_date_display: Start datetime for display in header (user's original input)
-        - end_date_display: End datetime for display in header (user's original input)
+        - start_date: Start datetime in ISO format (IST)
+        - end_date: End datetime in ISO format (IST)
+        - start_date_display: Start datetime for display in header
+        - end_date_display: End datetime for display in header
     """
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib import colors
@@ -528,19 +537,19 @@ async def export_readings_pdf(
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
     import os
 
-    # Parse datetime strings if provided
+    # Parse datetime strings if provided (IST, no conversion)
     start_dt = None
     end_dt = None
 
     if start_date:
         try:
-            start_dt = parse_iso_utc(start_date)
+            start_dt = parse_iso_ist(start_date)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid start_date format")
 
     if end_date:
         try:
-            end_dt = parse_iso_utc(end_date)
+            end_dt = parse_iso_ist(end_date)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid end_date format")
 
@@ -560,9 +569,21 @@ async def export_readings_pdf(
     # Create PDF in memory
     pdf_buffer = io.BytesIO()
 
-    # Get logo path
-    logo_path = os.path.join(os.path.dirname(__file__), '..', 'static', 'logo.png')
-    logo_exists = os.path.exists(logo_path)
+    # Get logo path (from frontend public folder)
+    # Try multiple locations for logo
+    logo_paths = [
+        os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'logo.png'),  # Development
+        os.path.join(os.path.dirname(__file__), '..', 'frontend', 'logo.png'),  # Built version
+        os.path.join(os.path.dirname(__file__), '..', 'static', 'logo.png')  # Fallback
+    ]
+
+    logo_path = None
+    for path in logo_paths:
+        if os.path.exists(path):
+            logo_path = path
+            break
+
+    logo_exists = logo_path is not None
 
     # Define custom header function for every page
     def add_header_and_border(canvas, doc):
@@ -672,7 +693,7 @@ async def export_readings_pdf(
     ]
 
     for idx, reading in enumerate(readings, start=1):
-        # Use raw UTC timestamp (display without timezone conversion to match preview)
+        # Use IST timestamp (no conversion needed)
         date_str = reading.ts_utc.strftime("%d/%m/%Y")
         time_str = reading.ts_utc.strftime("%H:%M:%S")
 
@@ -719,8 +740,8 @@ async def export_readings_pdf(
     # Prepare response
     pdf_buffer.seek(0)
 
-    # Filename with device name and timestamp
-    filename_time = utc_now()
+    # Filename with device name and timestamp (IST)
+    filename_time = ist_now()
     filename = f"{device_name}_report_{filename_time.strftime('%Y%m%d_%H%M%S')}.pdf"
 
     return StreamingResponse(
@@ -735,33 +756,187 @@ async def export_readings_pdf(
     )
 
 @router.get("/debug/readings")
-async def debug_readings(db: Session = Depends(get_db)):
+async def debug_readings(
+    limit: int = 20,
+    device_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
     """
     Debug endpoint to check all readings in database
+    All timestamps should be IST (naive, no timezone info)
+
+    Query Parameters:
+        - limit: Number of readings to return (default 20)
+        - device_id: Filter by device ID (optional)
     """
     try:
+        # Build query
+        query = db.query(DeviceReading)
+
+        if device_id:
+            query = query.filter(DeviceReading.device_id == device_id)
+
         # Get all readings
-        all_readings = db.query(DeviceReading).order_by(DeviceReading.ts_utc.desc()).limit(20).all()
+        all_readings = query.order_by(DeviceReading.ts_utc.desc()).limit(limit).all()
 
         result = {
             "total_count": db.query(DeviceReading).count(),
-            "recent_readings": []
+            "filtered_count": len(all_readings),
+            "recent_readings": [],
+            "note": "All timestamps are in IST (no timezone conversions)"
         }
 
         for reading in all_readings:
-            # Return timestamp as-is (timezone-aware from database)
             result["recent_readings"].append({
                 "id": reading.id,
                 "device_id": reading.device_id,
                 "device_name": reading.device_name,
                 "temperature": reading.value,
+                "ambient_temp": reading.ambient_temp,
                 "status": reading.status,
-                "timestamp": to_iso_utc(reading.ts_utc)
+                "timestamp_ist": to_iso_ist(reading.ts_utc),
+                "timestamp_raw": str(reading.ts_utc)
             })
 
         return result
     except Exception as e:
         return {"error": str(e)}
+
+@router.get("/debug/query")
+async def debug_query(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    device_id: int = 1,
+    db: Session = Depends(get_db)
+):
+    """
+    Debug endpoint to test the exact filter query
+    Shows what the filter endpoint would return
+    """
+    try:
+        # Parse dates if provided
+        start_dt = None
+        end_dt = None
+
+        if start_date:
+            start_dt = parse_iso_ist(start_date)
+        if end_date:
+            end_dt = parse_iso_ist(end_date)
+
+        # Build query
+        query = db.query(DeviceReading).filter(DeviceReading.device_id == device_id)
+
+        if start_dt:
+            query = query.filter(DeviceReading.ts_utc >= start_dt)
+        if end_dt:
+            query = query.filter(DeviceReading.ts_utc <= end_dt)
+
+        # Get results
+        readings = query.order_by(DeviceReading.ts_utc.desc()).limit(100).all()
+
+        result = {
+            "query_params": {
+                "device_id": device_id,
+                "start_date_input": start_date,
+                "end_date_input": end_date,
+                "start_date_parsed": str(start_dt) if start_dt else None,
+                "end_date_parsed": str(end_dt) if end_dt else None
+            },
+            "total_in_db": db.query(DeviceReading).filter(DeviceReading.device_id == device_id).count(),
+            "matching_count": len(readings),
+            "sample_readings": []
+        }
+
+        for reading in readings[:10]:  # Show first 10
+            result["sample_readings"].append({
+                "id": reading.id,
+                "timestamp_ist": to_iso_ist(reading.ts_utc),
+                "timestamp_raw": str(reading.ts_utc),
+                "temperature": reading.value,
+                "status": reading.status
+            })
+
+        return result
+    except Exception as e:
+        return {"error": str(e), "traceback": str(e.__traceback__)}
+
+@router.post("/data/clear-all")
+async def clear_all_data(db: Session = Depends(get_db)):
+    """
+    Clear all reading data from the database
+    Use this to start fresh or after testing
+
+    WARNING: This deletes ALL readings permanently!
+    """
+    try:
+        # Count before deletion
+        total_before = db.query(DeviceReading).count()
+
+        logger.warning(f"CLEARING ALL DATA: {total_before:,} readings will be deleted")
+
+        # Delete all readings
+        db.query(DeviceReading).delete()
+        db.commit()
+
+        # Verify deletion
+        total_after = db.query(DeviceReading).count()
+
+        logger.info(f"All data cleared successfully. Deleted {total_before:,} readings")
+
+        return {
+            "status": "success",
+            "message": f"All data cleared successfully",
+            "deleted_count": total_before,
+            "remaining_count": total_after
+        }
+    except Exception as e:
+        logger.error(f"Failed to clear data: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clear data: {str(e)}"
+        )
+
+@router.get("/data/stats")
+async def get_data_stats(db: Session = Depends(get_db)):
+    """
+    Get statistics about stored data
+    Shows total readings, date range, storage info
+    """
+    try:
+        total_readings = db.query(DeviceReading).count()
+
+        if total_readings == 0:
+            return {
+                "total_readings": 0,
+                "oldest_reading": None,
+                "newest_reading": None,
+                "date_range_days": 0,
+                "storage_info": "Database is empty"
+            }
+
+        # Get oldest and newest readings
+        oldest = db.query(DeviceReading).order_by(DeviceReading.ts_utc.asc()).first()
+        newest = db.query(DeviceReading).order_by(DeviceReading.ts_utc.desc()).first()
+
+        # Calculate date range
+        date_range_days = 0
+        if oldest and newest:
+            date_range_days = (newest.ts_utc - oldest.ts_utc).days
+
+        return {
+            "total_readings": total_readings,
+            "oldest_reading": to_iso_ist(oldest.ts_utc) if oldest else None,
+            "newest_reading": to_iso_ist(newest.ts_utc) if newest else None,
+            "date_range_days": date_range_days,
+            "storage_info": f"{total_readings:,} readings stored ({date_range_days} days of data)"
+        }
+    except Exception as e:
+        logger.error(f"Failed to get data stats: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get data stats: {str(e)}"
+        )
 
 # ============================================================================
 # INCLUDE SUB-ROUTERS

@@ -9,6 +9,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.device import DeviceReading
+from app.utils.datetime_utils import ist_now
 import logging
 
 logger = logging.getLogger(__name__)
@@ -139,7 +140,8 @@ class PingPongBuffer:
                         value=reading['temperature'] if reading['temperature'] is not None else 0.0,
                         ambient_temp=reading.get('ambient_temp'),  # Add ambient temperature
                         status=reading['status'],
-                        raw_hex=reading['raw_hex']
+                        raw_hex=reading['raw_hex'],
+                        created_at=ist_now().replace(tzinfo=None)  # Set created_at in IST (naive)
                     )
                     db_readings.append(db_reading)
                 except Exception as reading_error:
@@ -153,16 +155,16 @@ class PingPongBuffer:
                 logger.warning(f"No valid readings to save in Buffer {buffer_name}")
                 return
 
-            # Batch insert with error recovery
+            # Batch insert using add_all (works with SQLite autoincrement)
             try:
-                db.bulk_save_objects(db_readings)
+                db.add_all(db_readings)
                 db.commit()
                 self.total_saved += len(db_readings)
                 logger.info(f"Buffer {buffer_name} saved successfully ({len(db_readings)} readings, Total: {self.total_saved})")
             except Exception as bulk_error:
                 # If bulk insert fails, try saving one by one (slower but more reliable)
                 db.rollback()
-                logger.warning(f"Bulk insert failed, trying individual inserts: {bulk_error}")
+                logger.warning(f"Batch insert failed, trying individual inserts: {bulk_error}")
 
                 saved_count = 0
                 for reading_obj in db_readings:

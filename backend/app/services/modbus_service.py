@@ -10,7 +10,7 @@ import threading
 from datetime import datetime, timezone
 from typing import Dict, Optional
 from app.config import get_settings
-from app.utils.datetime_utils import utc_now, to_iso_utc
+from app.utils.datetime_utils import ist_now, to_iso_ist
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ class ModbusService:
             'ambient_temp': None,
             'status': 'Err',
             'raw_hex': '',
-            'timestamp': to_iso_utc(utc_now()),
+            'timestamp': to_iso_ist(ist_now()),
             'error_message': ''
         }
 

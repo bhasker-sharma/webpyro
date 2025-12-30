@@ -43,18 +43,19 @@ class DeviceReading(Base):
     """
     Device Reading Model
     Represents a temperature reading from a device
+    All timestamps are stored in IST (no timezone conversions)
     """
     __tablename__ = "device_readings"
 
-    id = Column(BigInteger, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     device_id = Column(Integer, ForeignKey("device_settings.id", ondelete="CASCADE"), nullable=False, index=True)
     device_name = Column(String(100), nullable=False)
-    ts_utc = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    ts_utc = Column(DateTime, nullable=False, index=True)  # IST timestamp (naive, no timezone)
     value = Column(Float, nullable=False)
     ambient_temp = Column(Float, nullable=True)  # Ambient temperature from separate register
     status = Column(String(10), nullable=False, index=True)  # OK, Stale, Err
     raw_hex = Column(String(100))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime, nullable=True)  # IST timestamp (naive, auto-set by app)
 
     # Relationship to device
     device = relationship("DeviceSettings", back_populates="readings")
