@@ -49,7 +49,7 @@ Thumbs.db
 
 # PyInstaller
 *.manifest
-*.spec
+
 
 # Coverage Reports
 htmlcov/
