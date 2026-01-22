@@ -29,6 +29,9 @@ class DeviceSettings(Base):
     register_count = Column(Integer, nullable=False, default=2)
     graph_y_min = Column(Float, nullable=True, default=600.0)  # Minimum Y-axis value for graph
     graph_y_max = Column(Float, nullable=True, default=2000.0)  # Maximum Y-axis value for graph
+    enable_temp_alarm = Column(Boolean, default=False)  # Enable/disable temperature alarm
+    temp_lower_limit = Column(Float, nullable=True, default=600.0)  # Lower temperature alarm limit
+    temp_upper_limit = Column(Float, nullable=True, default=2000.0)  # Upper temperature alarm limit
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

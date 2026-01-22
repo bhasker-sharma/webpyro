@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ConfigModal from '../components/ConfigModal';
 import GraphSection from '../components/GraphSection';
 import { deviceAPI, readingAPI, pollingAPI, configAPI } from '../services/api';
@@ -12,8 +12,16 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [wsConnected, setWsConnected] = useState(false); // WebSocket connection state
-    const [activeAlarms, setActiveAlarms] = useState(new Set()); // Track devices with active alarms
+    const [alarmStates, setAlarmStates] = useState({}); // Track alarm types per device: { deviceId: { ambient: bool, tempLower: bool, tempUpper: bool } }
     const [pollingPaused, setPollingPaused] = useState(false); // Manual polling control
+
+    // Ref to store latest allDevices for use in WebSocket callback (avoids stale closure)
+    const allDevicesRef = useRef([]);
+
+    // Keep ref in sync with state
+    useEffect(() => {
+        allDevicesRef.current = allDevices;
+    }, [allDevices]);
 
     useEffect(() => {
         console.log('Dashboard mounted');
@@ -34,36 +42,76 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
             if (!data.connected) {
                 console.log('WebSocket disconnected - clearing readings and alarms');
                 setDevicesWithReadings([]);
-                setActiveAlarms(new Set()); // Clear all active alarms
+                setAlarmStates({}); // Clear all active alarms
             }
         };
 
         // Listen for real-time reading updates
         const handleReadingUpdate = (data) => {
-            // Check for ambient temperature alarm (> 65°C)
+            // Find device configuration to check alarm settings (use ref to get latest value)
+            const device = allDevicesRef.current.find(d => d.id === data.device_id);
+
+            // Check for all alarm types
             const AMBIENT_TEMP_THRESHOLD = 65;
+            const alarmStatus = {
+                ambient: false,
+                tempLower: false,
+                tempUpper: false
+            };
+
+            // 1. Check ambient temperature alarm (> 65°C)
             if (data.ambient_temp !== null && data.ambient_temp !== undefined && data.ambient_temp >= AMBIENT_TEMP_THRESHOLD) {
-                setActiveAlarms(prev => {
-                    const newAlarms = new Set(prev);
-                    if (!newAlarms.has(data.device_id)) {
-                        newAlarms.add(data.device_id);
-                        console.log(`🚨 ALARM TRIGGERED: Device "${data.device_name}" (ID: ${data.device_id}) - Ambient: ${data.ambient_temp.toFixed(1)}°C > ${AMBIENT_TEMP_THRESHOLD}°C`);
-                        console.log(`📊 Active alarms now:`, Array.from(newAlarms));
-                    }
-                    return newAlarms;
-                });
-            } else {
-                // Clear alarm if temperature is back to normal
-                setActiveAlarms(prev => {
-                    const newAlarms = new Set(prev);
-                    if (newAlarms.has(data.device_id)) {
-                        newAlarms.delete(data.device_id);
-                        console.log(`✅ ALARM CLEARED: Device "${data.device_name}" (ID: ${data.device_id}) - Ambient: ${data.ambient_temp?.toFixed(1)}°C ≤ ${AMBIENT_TEMP_THRESHOLD}°C`);
-                        console.log(`📊 Active alarms now:`, Array.from(newAlarms));
-                    }
-                    return newAlarms;
-                });
+                alarmStatus.ambient = true;
             }
+
+            // 2. Check temperature alarms (if enabled for this device)
+            if (device && device.enable_temp_alarm) {
+                const temp = data.temperature;
+                if (temp !== null && temp !== undefined) {
+                    // Check lower limit
+                    if (temp < device.temp_lower_limit) {
+                        alarmStatus.tempLower = true;
+                    }
+                    // Check upper limit
+                    if (temp > device.temp_upper_limit) {
+                        alarmStatus.tempUpper = true;
+                    }
+                }
+            }
+
+            // Update alarm states
+            setAlarmStates(prev => {
+                const newStates = { ...prev };
+                const hasAnyAlarm = alarmStatus.ambient || alarmStatus.tempLower || alarmStatus.tempUpper;
+
+                if (hasAnyAlarm) {
+                    // Set or update alarm state
+                    const prevState = prev[data.device_id] || { ambient: false, tempLower: false, tempUpper: false };
+                    newStates[data.device_id] = alarmStatus;
+
+                    // Log new alarms
+                    if (alarmStatus.ambient && !prevState.ambient) {
+                        console.log(`🚨 AMBIENT ALARM: Device "${data.device_name}" - Ambient: ${data.ambient_temp.toFixed(1)}°C > ${AMBIENT_TEMP_THRESHOLD}°C`);
+                    }
+                    if (alarmStatus.tempLower && !prevState.tempLower) {
+                        console.log(`🚨 LOW TEMP ALARM: Device "${data.device_name}" - Temp: ${data.temperature.toFixed(1)}°C < ${device.temp_lower_limit}°C`);
+                    }
+                    if (alarmStatus.tempUpper && !prevState.tempUpper) {
+                        console.log(`🚨 HIGH TEMP ALARM: Device "${data.device_name}" - Temp: ${data.temperature.toFixed(1)}°C > ${device.temp_upper_limit}°C`);
+                    }
+                } else {
+                    // Clear alarm state
+                    if (prev[data.device_id]) {
+                        const prevState = prev[data.device_id];
+                        if (prevState.ambient || prevState.tempLower || prevState.tempUpper) {
+                            console.log(`✅ ALARMS CLEARED: Device "${data.device_name}"`);
+                        }
+                        delete newStates[data.device_id];
+                    }
+                }
+
+                return newStates;
+            });
 
             // Update the device reading immediately
             setDevicesWithReadings(prev => {
@@ -275,6 +323,9 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                     register_count: device.register_count,
                     graph_y_min: device.graph_y_min !== null && device.graph_y_min !== undefined ? device.graph_y_min : 600,
                     graph_y_max: device.graph_y_max !== null && device.graph_y_max !== undefined ? device.graph_y_max : 2000,
+                    enable_temp_alarm: device.enable_temp_alarm || false,
+                    temp_lower_limit: device.temp_lower_limit !== null && device.temp_lower_limit !== undefined ? device.temp_lower_limit : 600,
+                    temp_upper_limit: device.temp_upper_limit !== null && device.temp_upper_limit !== undefined ? device.temp_upper_limit : 2000,
                 };
 
                 await deviceAPI.create(devicePayload);
@@ -306,23 +357,59 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
         <div className="h-screen bg-gray-50 overflow-hidden">
             <div className="container mx-auto px-2 h-full flex flex-col">
                 {/* Alarm Banner */}
-                {activeAlarms.size > 0 && (
-                    <div className="mt-2 bg-red-600 border-2 border-red-700 rounded-lg shadow-lg px-4 py-3 animate-alarm-blink">
-                        <div className="flex items-center space-x-3">
-                            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <div className="flex-1">
-                                <p className="text-white font-bold text-sm">
-                                    AMBIENT TEMPERATURE ALARM!
-                                </p>
-                                <p className="text-red-100 text-xs">
-                                    {activeAlarms.size} device{activeAlarms.size > 1 ? 's' : ''} exceeded 65°C ambient temperature threshold
-                                </p>
+                {Object.keys(alarmStates).length > 0 && (() => {
+                    // Count total alarm types
+                    let totalAlarmCount = 0;
+                    const alarmMessages = [];
+
+                    Object.entries(alarmStates).forEach(([deviceId, alarms]) => {
+                        const device = devicesWithReadings.find(d => d.device_id === parseInt(deviceId));
+                        const deviceName = device?.device_name || `Device ${deviceId}`;
+                        const activeAlarmTypes = [];
+
+                        if (alarms.ambient) {
+                            activeAlarmTypes.push('Ambient Temp High');
+                            totalAlarmCount++;
+                        }
+                        if (alarms.tempLower) {
+                            activeAlarmTypes.push('Temperature Low');
+                            totalAlarmCount++;
+                        }
+                        if (alarms.tempUpper) {
+                            activeAlarmTypes.push('Temperature High');
+                            totalAlarmCount++;
+                        }
+
+                        if (activeAlarmTypes.length > 0) {
+                            alarmMessages.push(`${deviceName}: ${activeAlarmTypes.join(', ')}`);
+                        }
+                    });
+
+                    const deviceCount = Object.keys(alarmStates).length;
+                    const title = totalAlarmCount > 1 ? 'MULTIPLE ALARMS ACTIVE!' :
+                                  alarmStates[Object.keys(alarmStates)[0]].ambient ? 'AMBIENT TEMPERATURE ALARM!' :
+                                  alarmStates[Object.keys(alarmStates)[0]].tempLower ? 'TEMPERATURE LOW ALARM!' : 'TEMPERATURE HIGH ALARM!';
+
+                    return (
+                        <div className="mt-2 bg-red-600 border-2 border-red-700 rounded-lg shadow-lg px-4 py-3 animate-alarm-blink">
+                            <div className="flex items-center space-x-3">
+                                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                <div className="flex-1">
+                                    <p className="text-white font-bold text-sm">
+                                        {title}
+                                    </p>
+                                    <div className="text-red-100 text-xs space-y-1">
+                                        {alarmMessages.map((msg, idx) => (
+                                            <div key={idx}>{msg}</div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
 
                 {/* Status Bar */}
                 {pollingStats && (
@@ -427,7 +514,8 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                                 devices.map((device) => {
                                     // Find matching reading data for this device
                                     const readingData = devicesWithReadings.find(r => r.device_id === device.id);
-                                    const hasAlarm = activeAlarms.has(device.id);
+                                    const alarmState = alarmStates[device.id];
+                                    const hasAlarm = alarmState && (alarmState.ambient || alarmState.tempLower || alarmState.tempUpper);
                                     return (
                                         <DeviceCard
                                             key={device.id}
@@ -435,6 +523,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                                             reading={readingData?.latest_reading}
                                             formatTimeAgo={formatTimeAgo}
                                             hasAlarm={hasAlarm}
+                                            alarmState={alarmState}
                                         />
                                     );
                                 })
@@ -474,7 +563,7 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
     );
 }
 
-function DeviceCard({ device, reading, formatTimeAgo, hasAlarm }) {
+function DeviceCard({ device, reading, formatTimeAgo, hasAlarm, alarmState }) {
     const getStatusColor = (status) => {
         switch (status) {
             case 'OK': return 'bg-green-100 text-green-800 border-green-300';
@@ -515,13 +604,20 @@ function DeviceCard({ device, reading, formatTimeAgo, hasAlarm }) {
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                         </svg>
                         {/* Temperature or placeholder */}
-                        <div className="text-xl lg:text-2xl font-bold text-red-600">
-                            {temperature !== null && temperature !== undefined ? `${temperature.toFixed(1)}°C` : '--°C'}
+                        <div className={`text-xl lg:text-2xl font-bold ${(alarmState?.tempLower || alarmState?.tempUpper) ? 'text-red-600' : 'text-red-600'}`}>
+                            {temperature !== null && temperature !== undefined ? (
+                                <>
+                                    {alarmState?.tempLower && '❄️ '}
+                                    {temperature.toFixed(1)}°C
+                                    {alarmState?.tempUpper && ' 🔥'}
+                                    {(alarmState?.tempLower || alarmState?.tempUpper) && ' ⚠️'}
+                                </>
+                            ) : '--°C'}
                         </div>
                         {/* Ambient Temperature - Enhanced visibility */}
                         {ambientTemp !== null && ambientTemp !== undefined && (
-                            <div className={`mt-1 px-2 py-0.5 ${hasAlarm ? 'bg-red-600 border-red-700 text-white' : 'bg-blue-50 border-blue-200 text-blue-700'} border rounded text-xs font-semibold`}>
-                                {hasAlarm ? '🚨' : '🌡️'} Ambient: {ambientTemp.toFixed(1)}°C {hasAlarm ? '⚠️' : ''}
+                            <div className={`mt-1 px-2 py-0.5 ${alarmState?.ambient ? 'bg-red-600 border-red-700 text-white' : 'bg-blue-50 border-blue-200 text-blue-700'} border rounded text-xs font-semibold`}>
+                                {alarmState?.ambient ? '🚨' : '🌡️'} Ambient: {ambientTemp.toFixed(1)}°C {alarmState?.ambient ? '⚠️' : ''}
                             </div>
                         )}
                         {/* Error Message */}
@@ -533,13 +629,20 @@ function DeviceCard({ device, reading, formatTimeAgo, hasAlarm }) {
                     </>
                 ) : (
                     <>
-                        <div className={`text-xl lg:text-2xl font-bold ${status === 'OK' ? 'text-green-600' : 'text-gray-600'}`}>
-                            {temperature !== null && temperature !== undefined ? `${temperature.toFixed(1)}°C` : '--°C'}
+                        <div className={`text-xl lg:text-2xl font-bold ${(alarmState?.tempLower || alarmState?.tempUpper) ? 'text-red-600' : (status === 'OK' ? 'text-green-600' : 'text-gray-600')}`}>
+                            {temperature !== null && temperature !== undefined ? (
+                                <>
+                                    {alarmState?.tempLower && '❄️ '}
+                                    {temperature.toFixed(1)}°C
+                                    {alarmState?.tempUpper && ' 🔥'}
+                                    {(alarmState?.tempLower || alarmState?.tempUpper) && ' ⚠️'}
+                                </>
+                            ) : '--°C'}
                         </div>
                         {/* Ambient Temperature - Enhanced visibility */}
                         {ambientTemp !== null && ambientTemp !== undefined && (
-                            <div className={`mt-1 px-2 py-0.5 ${hasAlarm ? 'bg-red-600 border-red-700 text-white' : 'bg-blue-50 border-blue-200 text-blue-700'} border rounded text-xs font-semibold`}>
-                                {hasAlarm ? '🚨' : '🌡️'} Ambient: {ambientTemp.toFixed(1)}°C {hasAlarm ? '⚠️' : ''}
+                            <div className={`mt-1 px-2 py-0.5 ${alarmState?.ambient ? 'bg-red-600 border-red-700 text-white' : 'bg-blue-50 border-blue-200 text-blue-700'} border rounded text-xs font-semibold`}>
+                                {alarmState?.ambient ? '🚨' : '🌡️'} Ambient: {ambientTemp.toFixed(1)}°C {alarmState?.ambient ? '⚠️' : ''}
                             </div>
                         )}
                     </>

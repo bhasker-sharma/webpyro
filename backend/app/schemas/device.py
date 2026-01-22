@@ -27,6 +27,9 @@ class DeviceBase(BaseModel):
     register_count: Optional[int] = Field(None, ge=1, description="Number of registers to read (populated from .env)")
     graph_y_min: Optional[float] = Field(600.0, ge=600.0, le=2000.0, description="Minimum Y-axis value for graph display (600-2000)")
     graph_y_max: Optional[float] = Field(2000.0, ge=600.0, le=2000.0, description="Maximum Y-axis value for graph display (600-2000)")
+    enable_temp_alarm: bool = Field(False, description="Enable/disable temperature alarm")
+    temp_lower_limit: Optional[float] = Field(600.0, ge=600.0, le=1200.0, description="Lower temperature alarm limit (600-1200°C)")
+    temp_upper_limit: Optional[float] = Field(2000.0, ge=700.0, le=2000.0, description="Upper temperature alarm limit (700-2000°C)")
 
     @validator('baud_rate')
     def validate_baud_rate(cls, v):
@@ -51,6 +54,14 @@ class DeviceBase(BaseModel):
                 raise ValueError('graph_y_max must be greater than graph_y_min')
         return v
 
+    @validator('temp_upper_limit')
+    def validate_temp_range(cls, v, values):
+        """Validate that temp_upper_limit is greater than temp_lower_limit"""
+        if 'temp_lower_limit' in values and values['temp_lower_limit'] is not None and v is not None:
+            if v <= values['temp_lower_limit']:
+                raise ValueError('temp_upper_limit must be greater than temp_lower_limit')
+        return v
+
 
 class DeviceCreate(DeviceBase):
     """Schema for creating a new device"""
@@ -71,6 +82,9 @@ class DeviceUpdate(BaseModel):
     register_count: Optional[int] = Field(None, ge=1)
     graph_y_min: Optional[float] = Field(None, ge=600.0, le=2000.0, description="Minimum Y-axis value (600-2000)")
     graph_y_max: Optional[float] = Field(None, ge=600.0, le=2000.0, description="Maximum Y-axis value (600-2000)")
+    enable_temp_alarm: Optional[bool] = None
+    temp_lower_limit: Optional[float] = Field(None, ge=600.0, le=1200.0, description="Lower temperature alarm limit (600-1200°C)")
+    temp_upper_limit: Optional[float] = Field(None, ge=700.0, le=2000.0, description="Upper temperature alarm limit (700-2000°C)")
 
 
 class DeviceResponse(DeviceBase):

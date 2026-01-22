@@ -20,7 +20,10 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
         enabled: true,
         show_in_graph: true,
         graph_y_min: 600,
-        graph_y_max: 2000
+        graph_y_max: 2000,
+        enable_temp_alarm: false,
+        temp_lower_limit: 600,
+        temp_upper_limit: 2000
     });
 
     useEffect(() => {
@@ -136,7 +139,11 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                     enabled: true,
                     show_in_graph: true,
                     graph_y_min: existingDevice.graph_y_min !== null && existingDevice.graph_y_min !== undefined ? existingDevice.graph_y_min : 600,
-                    graph_y_max: existingDevice.graph_y_max !== null && existingDevice.graph_y_max !== undefined ? existingDevice.graph_y_max : 2000
+                    graph_y_max: existingDevice.graph_y_max !== null && existingDevice.graph_y_max !== undefined ? existingDevice.graph_y_max : 2000,
+                    // Alarm settings - load from existing device
+                    enable_temp_alarm: existingDevice.enable_temp_alarm || false,
+                    temp_lower_limit: existingDevice.temp_lower_limit !== null && existingDevice.temp_lower_limit !== undefined ? existingDevice.temp_lower_limit : 600,
+                    temp_upper_limit: existingDevice.temp_upper_limit !== null && existingDevice.temp_upper_limit !== undefined ? existingDevice.temp_upper_limit : 2000
                 });
             } else {
                 // Use default values if no device exists
@@ -411,6 +418,65 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                     title="Must be between 600-2000 and greater than Y-Min"
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Range: 600-2000°C, must be {'>'} Y-Min</p>
+                            </div>
+                        </div>
+
+                        {/* Temperature Alarm Section */}
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="mb-3">
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={deviceConfig.enable_temp_alarm}
+                                        onChange={(e) => handleConfigChange('enable_temp_alarm', e.target.checked)}
+                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    />
+                                    <span className="text-sm font-medium text-gray-700">Enable Temperature Alarm</span>
+                                </label>
+                                <p className="text-xs text-gray-500 mt-1 ml-6">Trigger alarms when temperature exceeds configured limits</p>
+                            </div>
+
+                            <div className={`grid grid-cols-2 gap-4 ${!deviceConfig.enable_temp_alarm ? 'opacity-50' : ''}`}>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Lower Limit (°C)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={deviceConfig.temp_lower_limit}
+                                        onChange={(e) => handleConfigChange('temp_lower_limit', parseFloat(e.target.value) || 600)}
+                                        disabled={!deviceConfig.enable_temp_alarm}
+                                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                            deviceConfig.temp_lower_limit < 600 || deviceConfig.temp_lower_limit > 1200 ? 'border-red-500 border-2' : 'border-gray-300'
+                                        } ${!deviceConfig.enable_temp_alarm ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                        min="600"
+                                        max="1200"
+                                        step="10"
+                                        placeholder="600"
+                                        title="Must be between 600-1200°C"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Range: 600-1200°C</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Upper Limit (°C)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={deviceConfig.temp_upper_limit}
+                                        onChange={(e) => handleConfigChange('temp_upper_limit', parseFloat(e.target.value) || 2000)}
+                                        disabled={!deviceConfig.enable_temp_alarm}
+                                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                            deviceConfig.temp_upper_limit < 700 || deviceConfig.temp_upper_limit > 2000 || deviceConfig.temp_upper_limit <= deviceConfig.temp_lower_limit ? 'border-red-500 border-2' : 'border-gray-300'
+                                        } ${!deviceConfig.enable_temp_alarm ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                        min="700"
+                                        max="2000"
+                                        step="10"
+                                        placeholder="2000"
+                                        title="Must be between 700-2000°C and greater than Lower Limit"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Range: 700-2000°C, must be {'>'} Lower Limit</p>
+                                </div>
                             </div>
                         </div>
 
