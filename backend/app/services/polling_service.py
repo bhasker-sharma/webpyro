@@ -220,6 +220,19 @@ class PollingService:
                             'timestamp': datetime.fromisoformat(result['timestamp'])
                         }
 
+                        # Check alarm thresholds (only for successful reads)
+                        if result['status'] == 'OK' and result['temperature'] is not None:
+                            temp = result['temperature']
+                            alarm_min = settings.alarm_min_temp
+                            alarm_max = settings.alarm_max_temp
+                            if (alarm_min is not None and temp < alarm_min) or (alarm_max is not None and temp > alarm_max):
+                                reading_data['status'] = 'Alarm'
+                                result['status'] = 'Alarm'
+                                if alarm_min is not None and temp < alarm_min:
+                                    result['error_message'] = f"Temperature {temp}°C below alarm minimum ({alarm_min}°C)"
+                                else:
+                                    result['error_message'] = f"Temperature {temp}°C above alarm maximum ({alarm_max}°C)"
+
                         # Add to buffer (will be saved to DB when buffer is full)
                         reading_buffer.add_reading(reading_data)
 

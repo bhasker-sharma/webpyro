@@ -384,6 +384,7 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
             case 'OK': return 'bg-green-100 text-green-800 border-green-300';
             case 'Stale': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
             case 'Err': return 'bg-red-100 text-red-800 border-red-300';
+            case 'Alarm': return 'bg-red-100 text-red-800 border-red-300';
             default: return 'bg-gray-100 text-gray-800 border-gray-300';
         }
     };
@@ -393,6 +394,7 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
             case 'OK': return 'from-green-50 to-green-100 border-green-200';
             case 'Stale': return 'from-yellow-50 to-yellow-100 border-yellow-200';
             case 'Err': return 'from-red-50 to-red-100 border-red-200';
+            case 'Alarm': return 'from-red-50 to-red-100 border-red-200';
             default: return 'from-blue-50 to-blue-100 border-blue-200';
         }
     };
@@ -412,12 +414,18 @@ function DeviceCard({ device, reading, formatTimeAgo }) {
             </div>
 
             <div className="text-center flex-1 flex flex-col items-center justify-center min-h-0">
-                {status === 'Err' ? (
+                {(status === 'Err' || status === 'Alarm') ? (
                     <>
-                        {/* Error Icon */}
-                        <svg className="w-8 h-8 text-red-500 mb-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
+                        {/* Error/Alarm Icon */}
+                        {status === 'Alarm' ? (
+                            <svg className="w-8 h-8 text-red-500 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                            </svg>
+                        ) : (
+                            <svg className="w-8 h-8 text-red-500 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                        )}
                         {/* Temperature or placeholder */}
                         <div className="text-xl lg:text-2xl font-bold text-red-600">
                             {temperature !== null && temperature !== undefined ? `${temperature.toFixed(1)}°C` : '--°C'}

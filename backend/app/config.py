@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Optional
 import os
 
 class Settings(BaseSettings):
@@ -33,6 +34,11 @@ class Settings(BaseSettings):
 
     # Configuration Access PIN
     config_pin: str = "1234"
+
+    # Temperature Alarm Thresholds (set by developer, not user)
+    # Leave as None to disable that side of the alarm
+    alarm_min_temp: Optional[float] = None   # Alarm if temperature drops below this value
+    alarm_max_temp: Optional[float] = None   # Alarm if temperature rises above this value
 
     # Data Retention Settings (Time-based FIFO cleanup)
     data_retention_days: float = 90       # Keep last 90 days (3 months) of data - supports decimals (e.g., 0.0833 = 2 hours)
