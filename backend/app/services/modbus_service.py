@@ -203,7 +203,7 @@ class ModbusService:
                     return result
 
                 # Validate temperature (sanity check)
-                if -50 <= temperature <= 1500:  # Reasonable range for pyrometer
+                if -50 <= temperature <= 2000:  # Reasonable range for pyrometer
                     result['temperature'] = round(temperature, 2)
                     result['status'] = 'OK'
                     # Don't log successful reads (too verbose) - only errors
@@ -245,7 +245,7 @@ class ModbusService:
                             ambient_temperature = struct.unpack('>f', ambient_byte_data)[0]
 
                         # Validate ambient temperature
-                        if -50 <= ambient_temperature <= 1500:
+                        if -50 <= ambient_temperature <= 100:
                             result['ambient_temp'] = round(ambient_temperature, 2)
                             # Don't log successful ambient reads (too verbose)
                         else:
