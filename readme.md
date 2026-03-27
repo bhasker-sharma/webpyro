@@ -272,7 +272,7 @@ For development and testing:
 
 ```cmd
 cd backend
-python main.py
+uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 This will:
@@ -371,5 +371,3 @@ For issues or questions:
 [Add your license information here]
 
 ---
-
-**Built with** ❤️ **by TIPL**

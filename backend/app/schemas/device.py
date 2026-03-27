@@ -25,10 +25,10 @@ class DeviceBase(BaseModel):
     function_code: Optional[int] = Field(None, ge=1, le=4, description="Modbus function code (populated from .env)")
     start_register: Optional[int] = Field(None, ge=0, description="Starting register (populated from .env)")
     register_count: Optional[int] = Field(None, ge=1, description="Number of registers to read (populated from .env)")
-    graph_y_min: Optional[float] = Field(600.0, ge=600.0, le=2000.0, description="Minimum Y-axis value for graph display (600-2000)")
-    graph_y_max: Optional[float] = Field(2000.0, ge=600.0, le=2000.0, description="Maximum Y-axis value for graph display (600-2000)")
+    graph_y_min: Optional[float] = Field(400.0, ge=400.0, le=2000.0, description="Minimum Y-axis value for graph display (400-2000)")
+    graph_y_max: Optional[float] = Field(2000.0, ge=400.0, le=2000.0, description="Maximum Y-axis value for graph display (400-2000)")
     enable_temp_alarm: bool = Field(False, description="Enable/disable temperature alarm")
-    temp_lower_limit: Optional[float] = Field(600.0, ge=600.0, le=1200.0, description="Lower temperature alarm limit (600-1200°C)")
+    temp_lower_limit: Optional[float] = Field(400.0, ge=400.0, le=1200.0, description="Lower temperature alarm limit (400-1200°C)")
     temp_upper_limit: Optional[float] = Field(2000.0, ge=700.0, le=2000.0, description="Upper temperature alarm limit (700-2000°C)")
 
     @validator('baud_rate')
@@ -80,10 +80,10 @@ class DeviceUpdate(BaseModel):
     function_code: Optional[int] = Field(None, ge=1, le=4)
     start_register: Optional[int] = Field(None, ge=0)
     register_count: Optional[int] = Field(None, ge=1)
-    graph_y_min: Optional[float] = Field(None, ge=600.0, le=2000.0, description="Minimum Y-axis value (600-2000)")
-    graph_y_max: Optional[float] = Field(None, ge=600.0, le=2000.0, description="Maximum Y-axis value (600-2000)")
+    graph_y_min: Optional[float] = Field(None, ge=400.0, le=2000.0, description="Minimum Y-axis value (400-2000)")
+    graph_y_max: Optional[float] = Field(None, ge=400.0, le=2000.0, description="Maximum Y-axis value (400-2000)")
     enable_temp_alarm: Optional[bool] = None
-    temp_lower_limit: Optional[float] = Field(None, ge=600.0, le=1200.0, description="Lower temperature alarm limit (600-1200°C)")
+    temp_lower_limit: Optional[float] = Field(None, ge=400.0, le=1200.0, description="Lower temperature alarm limit (400-1200°C)")
     temp_upper_limit: Optional[float] = Field(None, ge=700.0, le=2000.0, description="Upper temperature alarm limit (700-2000°C)")
 
 

@@ -19,10 +19,10 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
         com_port: 'COM3',
         enabled: true,
         show_in_graph: true,
-        graph_y_min: 600,
+        graph_y_min: 400,
         graph_y_max: 2000,
         enable_temp_alarm: false,
-        temp_lower_limit: 600,
+        temp_lower_limit: 400,
         temp_upper_limit: 2000
     });
 
@@ -138,11 +138,11 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                     com_port: existingDevice.com_port || (availableComPorts[0]?.port || 'COM3'),
                     enabled: true,
                     show_in_graph: true,
-                    graph_y_min: existingDevice.graph_y_min !== null && existingDevice.graph_y_min !== undefined ? existingDevice.graph_y_min : 600,
+                    graph_y_min: existingDevice.graph_y_min !== null && existingDevice.graph_y_min !== undefined ? existingDevice.graph_y_min : 400,
                     graph_y_max: existingDevice.graph_y_max !== null && existingDevice.graph_y_max !== undefined ? existingDevice.graph_y_max : 2000,
                     // Alarm settings - load from existing device
                     enable_temp_alarm: existingDevice.enable_temp_alarm || false,
-                    temp_lower_limit: existingDevice.temp_lower_limit !== null && existingDevice.temp_lower_limit !== undefined ? existingDevice.temp_lower_limit : 600,
+                    temp_lower_limit: existingDevice.temp_lower_limit !== null && existingDevice.temp_lower_limit !== undefined ? existingDevice.temp_lower_limit : 400,
                     temp_upper_limit: existingDevice.temp_upper_limit !== null && existingDevice.temp_upper_limit !== undefined ? existingDevice.temp_upper_limit : 2000
                 });
             } else {
@@ -158,8 +158,8 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
         // Validate Y-range values
         if (field === 'graph_y_min' || field === 'graph_y_max') {
             const numValue = parseFloat(value);
-            if (numValue < 600) {
-                value = 600;
+            if (numValue < 400) {
+                value = 400;
             } else if (numValue > 2000) {
                 value = 2000;
             }
@@ -177,11 +177,11 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
         }
 
         // Check Y-range
-        if (deviceConfig.graph_y_min < 600 || deviceConfig.graph_y_min > 2000) {
-            errors.push('Graph Y-Min must be between 600 and 2000');
+        if (deviceConfig.graph_y_min < 400 || deviceConfig.graph_y_min > 2000) {
+            errors.push('Graph Y-Min must be between 400 and 2000');
         }
-        if (deviceConfig.graph_y_max < 600 || deviceConfig.graph_y_max > 2000) {
-            errors.push('Graph Y-Max must be between 600 and 2000');
+        if (deviceConfig.graph_y_max < 400 || deviceConfig.graph_y_max > 2000) {
+            errors.push('Graph Y-Max must be between 400 and 2000');
         }
         if (deviceConfig.graph_y_max <= deviceConfig.graph_y_min) {
             errors.push('Graph Y-Max must be greater than Y-Min');
@@ -265,11 +265,10 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                         <button
                             onClick={handlePinSubmit}
                             disabled={pinInput.length !== 4}
-                            className={`flex-1 px-4 py-2 rounded-lg transition ${
-                                pinInput.length === 4
+                            className={`flex-1 px-4 py-2 rounded-lg transition ${pinInput.length === 4
                                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            }`}
+                                }`}
                         >
                             Verify PIN
                         </button>
@@ -304,7 +303,7 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                 <div className="flex-1 overflow-auto p-6">
                     <div className="mb-6 text-sm text-gray-600 bg-blue-50 p-4 rounded-lg border border-blue-200">
                         Configure your single pyrometer device. The Instrument ID is fixed to <strong>1</strong> for single-device mode.
-                        <br/><br/>
+                        <br /><br />
                         <strong>Note:</strong> To configure device parameters like emissivity, use the <strong>Pyrometer Settings</strong> option from the navigation bar.
                     </div>
 
@@ -388,17 +387,16 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                 <input
                                     type="number"
                                     value={deviceConfig.graph_y_min}
-                                    onChange={(e) => handleConfigChange('graph_y_min', parseFloat(e.target.value) || 600)}
-                                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                                        deviceConfig.graph_y_min < 600 || deviceConfig.graph_y_min > 2000 ? 'border-red-500 border-2' : 'border-gray-300'
-                                    }`}
-                                    min="600"
+                                    onChange={(e) => handleConfigChange('graph_y_min', parseFloat(e.target.value) || 400)}
+                                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${deviceConfig.graph_y_min < 400 || deviceConfig.graph_y_min > 2000 ? 'border-red-500 border-2' : 'border-gray-300'
+                                        }`}
+                                    min="400"
                                     max="2000"
                                     step="50"
-                                    placeholder="600"
-                                    title="Must be between 600-2000"
+                                    placeholder="400"
+                                    title="Must be between 400-2000"
                                 />
-                                <p className="text-xs text-gray-500 mt-1">Range: 600-2000°C</p>
+                                <p className="text-xs text-gray-500 mt-1">Range: 400-2000°C</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -408,16 +406,15 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                     type="number"
                                     value={deviceConfig.graph_y_max}
                                     onChange={(e) => handleConfigChange('graph_y_max', parseFloat(e.target.value) || 2000)}
-                                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                                        deviceConfig.graph_y_max < 600 || deviceConfig.graph_y_max > 2000 || deviceConfig.graph_y_max <= deviceConfig.graph_y_min ? 'border-red-500 border-2' : 'border-gray-300'
-                                    }`}
-                                    min="600"
+                                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${deviceConfig.graph_y_max < 400 || deviceConfig.graph_y_max > 2000 || deviceConfig.graph_y_max <= deviceConfig.graph_y_min ? 'border-red-500 border-2' : 'border-gray-300'
+                                        }`}
+                                    min="400"
                                     max="2000"
                                     step="50"
                                     placeholder="2000"
-                                    title="Must be between 600-2000 and greater than Y-Min"
+                                    title="Must be between 400-2000 and greater than Y-Min"
                                 />
-                                <p className="text-xs text-gray-500 mt-1">Range: 600-2000°C, must be {'>'} Y-Min</p>
+                                <p className="text-xs text-gray-500 mt-1">Range: 400-2000°C, must be {'>'} Y-Min</p>
                             </div>
                         </div>
 
@@ -444,18 +441,17 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                     <input
                                         type="number"
                                         value={deviceConfig.temp_lower_limit}
-                                        onChange={(e) => handleConfigChange('temp_lower_limit', parseFloat(e.target.value) || 600)}
+                                        onChange={(e) => handleConfigChange('temp_lower_limit', parseFloat(e.target.value) || 400)}
                                         disabled={!deviceConfig.enable_temp_alarm}
-                                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                                            deviceConfig.temp_lower_limit < 600 || deviceConfig.temp_lower_limit > 1200 ? 'border-red-500 border-2' : 'border-gray-300'
-                                        } ${!deviceConfig.enable_temp_alarm ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                        min="600"
+                                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${deviceConfig.temp_lower_limit < 400 || deviceConfig.temp_lower_limit > 1200 ? 'border-red-500 border-2' : 'border-gray-300'
+                                            } ${!deviceConfig.enable_temp_alarm ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                        min="400"
                                         max="1200"
                                         step="10"
-                                        placeholder="600"
-                                        title="Must be between 600-1200°C"
+                                        placeholder="400"
+                                        title="Must be between 400-1200°C"
                                     />
-                                    <p className="text-xs text-gray-500 mt-1">Range: 600-1200°C</p>
+                                    <p className="text-xs text-gray-500 mt-1">Range: 400-1200°C</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -466,9 +462,8 @@ function ConfigModal({ isOpen, onClose, devices, onSave }) {
                                         value={deviceConfig.temp_upper_limit}
                                         onChange={(e) => handleConfigChange('temp_upper_limit', parseFloat(e.target.value) || 2000)}
                                         disabled={!deviceConfig.enable_temp_alarm}
-                                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                                            deviceConfig.temp_upper_limit < 700 || deviceConfig.temp_upper_limit > 2000 || deviceConfig.temp_upper_limit <= deviceConfig.temp_lower_limit ? 'border-red-500 border-2' : 'border-gray-300'
-                                        } ${!deviceConfig.enable_temp_alarm ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${deviceConfig.temp_upper_limit < 700 || deviceConfig.temp_upper_limit > 2000 || deviceConfig.temp_upper_limit <= deviceConfig.temp_lower_limit ? 'border-red-500 border-2' : 'border-gray-300'
+                                            } ${!deviceConfig.enable_temp_alarm ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                         min="700"
                                         max="2000"
                                         step="10"

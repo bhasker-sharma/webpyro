@@ -143,7 +143,7 @@ STEP 2: Add IRQ Pyrometer Device
      * Instrument ID: 1-16 (must match device slave ID)
      * COM Port: Select from dropdown
      * Baud Rate: Match device setting (usually 9600)
-     * Graph Y-Min: Minimum graph temperature (e.g., 600)
+     * Graph Y-Min: Minimum graph temperature (e.g., 400)
      * Graph Y-Max: Maximum graph temperature (e.g., 2000)
 
 STEP 3: Remove Device

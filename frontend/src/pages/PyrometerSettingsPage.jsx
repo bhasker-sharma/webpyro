@@ -38,7 +38,7 @@ function PyrometerSettingsPage({ isOpen, onClose }) {
     // Constants
     const MIN_EMISSIVITY = 0.01;
     const MAX_EMISSIVITY = 1.30;
-    const MIN_TEMP_LOWER = 600;
+    const MIN_TEMP_LOWER = 400;
     const MAX_TEMP_LOWER = 1200;  // Lower limit max is 1200°C
     const MIN_TEMP_UPPER = 700;   // Upper limit min is 700°C
     const MAX_TEMP_UPPER = 2000;

@@ -321,10 +321,10 @@ function DashboardPage({ configModalOpen, setConfigModalOpen }) {
                     function_code: device.function_code,
                     start_register: device.start_register,
                     register_count: device.register_count,
-                    graph_y_min: device.graph_y_min !== null && device.graph_y_min !== undefined ? device.graph_y_min : 600,
+                    graph_y_min: device.graph_y_min !== null && device.graph_y_min !== undefined ? device.graph_y_min : 400,
                     graph_y_max: device.graph_y_max !== null && device.graph_y_max !== undefined ? device.graph_y_max : 2000,
                     enable_temp_alarm: device.enable_temp_alarm || false,
-                    temp_lower_limit: device.temp_lower_limit !== null && device.temp_lower_limit !== undefined ? device.temp_lower_limit : 600,
+                    temp_lower_limit: device.temp_lower_limit !== null && device.temp_lower_limit !== undefined ? device.temp_lower_limit : 400,
                     temp_upper_limit: device.temp_upper_limit !== null && device.temp_upper_limit !== undefined ? device.temp_upper_limit : 2000,
                 };
 
